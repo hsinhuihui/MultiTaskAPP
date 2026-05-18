@@ -1,30 +1,23 @@
-//
-//  MultiTaskAPPApp.swift
-//  MultiTaskAPP
-//
-
 import SwiftUI
-import SwiftData
+import FirebaseCore // 引入 Firebase 核心套件
+
+// 建立一個 AppDelegate 來處理 Firebase 的初始化
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        FirebaseApp.configure() // 初始化 Firebase
+        return true
+    }
+}
 
 @main
 struct MultiTaskAPPApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
+    // 註冊 AppDelegate，讓 App 啟動時執行初始化
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AuthView() // 目前先維持載入預設的 ContentView
         }
-        .modelContainer(sharedModelContainer)
     }
 }
