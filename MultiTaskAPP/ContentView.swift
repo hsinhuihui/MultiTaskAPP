@@ -5,20 +5,6 @@
 
 import SwiftUI
 
-// 1. 定義任務狀態
-enum TaskStatus: String, Codable, CaseIterable {
-    case todo = "To-do"
-    case inProgress = "In Progress"
-    case done = "Done"
-}
-
-// 2. 任務資料模型
-struct TodoTask: Identifiable, Codable {
-    var id = UUID() // 用 UUID() 產生唯一 id
-    var title: String
-    var status: TaskStatus
-}
-
 struct ContentView: View {
     // 暫時用一組假資料模擬專案中的任務清單，測試進度條
     // @State 即時更新畫面資料
