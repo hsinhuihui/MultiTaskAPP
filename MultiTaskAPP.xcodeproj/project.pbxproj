@@ -7,14 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ACAA1AD82FC4206D00A17FD2 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = ACAA1AD72FC4206D00A17FD2 /* FirebaseStorage */; };
 		ACFD6B8D2FBAE20100633197 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = ACFD6B8C2FBAE20100633197 /* FirebaseAuth */; };
 		ACFD6B8F2FBAE20100633197 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = ACFD6B8E2FBAE20100633197 /* FirebaseFirestore */; };
-		ACFD6B912FBAE38600633197 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACFD6B902FBAE38600633197 /* AuthView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		5AD935C72FAA10A0006AD2B5 /* MultiTaskAPP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MultiTaskAPP.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		ACFD6B902FBAE38600633197 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +31,7 @@
 			files = (
 				ACFD6B8D2FBAE20100633197 /* FirebaseAuth in Frameworks */,
 				ACFD6B8F2FBAE20100633197 /* FirebaseFirestore in Frameworks */,
+				ACAA1AD82FC4206D00A17FD2 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -41,8 +41,8 @@
 		5AD935BE2FAA10A0006AD2B5 = {
 			isa = PBXGroup;
 			children = (
-				ACFD6B902FBAE38600633197 /* AuthView.swift */,
 				5AD935C92FAA10A0006AD2B5 /* MultiTaskAPP */,
+				ACAA1AD62FC4206D00A17FD2 /* Frameworks */,
 				5AD935C82FAA10A0006AD2B5 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -53,6 +53,13 @@
 				5AD935C72FAA10A0006AD2B5 /* MultiTaskAPP.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		ACAA1AD62FC4206D00A17FD2 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -77,6 +84,7 @@
 			packageProductDependencies = (
 				ACFD6B8C2FBAE20100633197 /* FirebaseAuth */,
 				ACFD6B8E2FBAE20100633197 /* FirebaseFirestore */,
+				ACAA1AD72FC4206D00A17FD2 /* FirebaseStorage */,
 			);
 			productName = MultiTaskAPP;
 			productReference = 5AD935C72FAA10A0006AD2B5 /* MultiTaskAPP.app */;
@@ -134,7 +142,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ACFD6B912FBAE38600633197 /* AuthView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -357,6 +364,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		ACAA1AD72FC4206D00A17FD2 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ACFD6B8B2FBAE20100633197 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
 		ACFD6B8C2FBAE20100633197 /* FirebaseAuth */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = ACFD6B8B2FBAE20100633197 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
