@@ -1,43 +1,56 @@
-//
-//  MultiTaskAPPApp.swift
-//  MultiTaskAPP
-//
-//
-
 import SwiftUI
 import FirebaseCore // 引入 Firebase 核心套件
+import FirebaseAuth // 🌟 必須補上這一行，否則 Xcode 找不到 Auth.auth()
 import UserNotifications // 推播與本地通知系統框架
-
-// 建立一個 AppDelegate 來處理 Firebase 的初始化
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication,
-                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        FirebaseApp.configure() // 初始化 Firebase
-        return true
-    }
-}
 
 @main
 struct MultiTaskAPPApp: App {
-    // 註冊 AppDelegate，讓 App 啟動時執行初始化
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    
+    // 🌟 全域狀態：控制現在該顯示「登入畫面」還是「專案大廳」
+    @State private var isUserLoggedIn: Bool = false
+
+    init() {
+        // 🔒 只在這裡初始化一次 Firebase，原本上面的 AppDelegate 就可以丟掉了！
+        FirebaseApp.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
-            AuthView() // 目前先維持載入預設的 ContentView
+            Group {
+                if isUserLoggedIn {
+                    ProjectListView() 
+                } else {
+                    AuthView()
+                }
+            }
+            .animation(.easeInOut, value: isUserLoggedIn) // 讓切換畫面時有平滑的淡入淡出動畫
+            .onAppear {
+                // 1. 順便在這裡觸發你寫在下面的「請求通知權限」彈窗
+                requestNotificationPermission()
+                
+                // 2. 檢查上次使用者是否登入過，有的話直接進大廳
+                if Auth.auth().currentUser != nil {
+                    isUserLoggedIn = true
+                }
+            }
+            // 🌟 核心：接收到登入畫面傳來的「 userLoggedIn 」廣播時，秒切進大廳！
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("userLoggedIn"))) { _ in
+                isUserLoggedIn = true
+            }
+            // 🌟 核心：接收到大廳傳來的「 userLoggedOut 」廣播時，秒切回登入頁！
+            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("userLoggedOut"))) { _ in
+                isUserLoggedIn = false
+            }
         }
     }
 }
 
-// 允許通知權限
+// 允許通知權限（維持原樣，移到最下面放著）
 func requestNotificationPermission() {
-    
-    // 取得目前這台 iPhone 的中央通知控制中心物件
     UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { success, error in
         if success {
-            print("使用者同意開啟通知！")
+            print("✅ 使用者同意開啟通知！")
         } else if let error = error {
-            print("權限請求失敗: \(error.localizedDescription)")
+            print("❌ 權限請求失敗: \(error.localizedDescription)")
         }
     }
 }
