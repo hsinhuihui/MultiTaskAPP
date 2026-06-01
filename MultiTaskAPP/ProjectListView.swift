@@ -16,21 +16,21 @@ struct ProjectListView: View {
     @State private var showProfileSheet = false
     @State private var userName: String = Auth.auth().currentUser?.displayName ?? "用戶"
     @State private var userEmail: String = Auth.auth().currentUser?.email ?? ""
-    @State private var localImage: UIImage? = nil // 儲存手機剛選好的實體大頭貼圖片
+    @State private var localImage: UIImage? = nil
     @State private var selectedItem: PhotosPickerItem? = nil
-    @State private var inputName: String = "" // 暫存修改中的名字
-    @State private var isEditingName = false // 控制名字旁邊小鉛筆的切換狀態
+    @State private var inputName: String = ""
+    @State private var isEditingName = false
     
-    // 6連格邀請碼彈窗狀態
+    // 6連格「加入專案」輸入框彈窗狀態
     @State private var showCustomJoinAlert = false
-    @State private var combinedPinValue: String = "" // 一把抓的 6 碼字串
-    @FocusState private var isInputFocused: Bool // 控制隱形輸入框的焦點
+    @State private var combinedPinValue: String = ""
+    @FocusState private var isInputFocused: Bool
     
-    // 建立專案成功後的邀請碼彈窗狀態
+    // 🎉「建立專案成功」的邀請碼視窗狀態
     @State private var showCreateSuccessAlert = false
     @State private var createdProjectInviteCode = ""
     
-    // 🌟 浮動通知（Toast）專用變數
+    // 浮動通知（Toast）專用變數
     @State private var showToast = false
     @State private var toastMessage = ""
     
@@ -40,15 +40,14 @@ struct ProjectListView: View {
         ZStack {
             NavigationStack {
                 ZStack {
-                    // 🌟 柔和清爽的背景底色
+                    // 柔和清爽的背景底色
                     Color(.systemGroupedBackground)
                         .ignoresSafeArea()
                     
                     ScrollView {
-                        // 垂直單列長條佈局
                         VStack(spacing: 14) {
                             
-                            // 🌟 客製化高級頂部列 (頭像、問候語、輸入邀請碼)
+                            // 客製化高級頂部列 (頭像、問候語、輸入邀請碼)
                             HStack(spacing: 14) {
                                 Button(action: {
                                     inputName = userName
@@ -71,9 +70,12 @@ struct ProjectListView: View {
                                 }
                                 
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text("\(userName) ")
+                                    Text("你好，\(userName) 👋")
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                         .foregroundColor(.primary)
+                                    Text("今天準備專注在哪個專案呢？")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.secondary)
                                 }
                                 
                                 Spacer()
@@ -99,7 +101,7 @@ struct ProjectListView: View {
                             .padding(.top, 15)
                             .padding(.bottom, 5)
                             
-                            // 🌟 橫向清爽扁平狀的「建立新專案」虛線按鈕
+                            // 建立新專案虛線按鈕
                             Button(action: { showCreateSheet = true }) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "plus.circle.fill")
@@ -131,24 +133,18 @@ struct ProjectListView: View {
                             }
                             .padding(.horizontal, 20)
                             
-                            // 🌟 橫向清爽扁平長條狀的「專案列表」
+                            // 專案列表卡片
                             ForEach(projects, id: \.inviteCode) { project in
                                 HStack(spacing: 16) {
-                                    
-                                    // 左側：清新漸層圓圈與藍色資料夾
                                     ZStack {
                                         Circle()
-                                            .fill(
-                                                LinearGradient(colors: [Color.blue.opacity(0.12), Color.purple.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                            )
+                                            .fill(LinearGradient(colors: [Color.blue.opacity(0.12), Color.purple.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                             .frame(width: 46, height: 46)
-                                        
                                         Image(systemName: "folder.fill")
                                             .font(.system(size: 18, weight: .medium))
                                             .foregroundColor(.blue)
                                     }
                                     
-                                    // 中間：專案名稱與跳轉頁面
                                     NavigationLink(destination: Text("這裡之後放 \(project.title) 的待辦事項")) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(project.title)
@@ -156,7 +152,6 @@ struct ProjectListView: View {
                                                 .foregroundColor(.primary)
                                                 .multilineTextAlignment(.leading)
                                                 .lineLimit(1)
-                                            
                                             Text("查看專案詳細待辦任務")
                                                 .font(.system(size: 12))
                                                 .foregroundColor(.secondary)
@@ -165,7 +160,6 @@ struct ProjectListView: View {
                                     
                                     Spacer()
                                     
-                                    // 右側：亮橘色小巧複製邀請碼按鈕
                                     Button(action: {
                                         UIPasteboard.general.string = project.inviteCode
                                         triggerToast(message: "📋 已複製邀請碼：\(project.inviteCode)")
@@ -187,10 +181,7 @@ struct ProjectListView: View {
                                 .frame(height: 80)
                                 .background(Color(.secondarySystemGroupedBackground))
                                 .cornerRadius(16)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(Color.black.opacity(0.03), lineWidth: 1)
-                                )
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.black.opacity(0.03), lineWidth: 1))
                                 .shadow(color: Color.black.opacity(0.02), radius: 5, x: 0, y: 3)
                             }
                             .padding(.horizontal, 20)
@@ -201,8 +192,14 @@ struct ProjectListView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarHidden(true)
                 .sheet(isPresented: $showCreateSheet, onDismiss: fetchProjects) {
-                    // 🌟 100% 精準對齊你寫好的 CreateProjectView
-                    CreateProjectView()
+                    // 🌟 完美對接：在這裡接收傳回來的 code 並開啟大廳的 Success 彈窗
+                    CreateProjectView(onSuccess: { inviteCode in
+                        self.showCreateSheet = false
+                        self.createdProjectInviteCode = inviteCode
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            self.showCreateSuccessAlert = true
+                        }
+                    })
                 }
                 .sheet(isPresented: $showProfileSheet) {
                     profileSection
@@ -216,7 +213,7 @@ struct ProjectListView: View {
             .disabled(showCustomJoinAlert || showCreateSuccessAlert)
             .blur(radius: (showCustomJoinAlert || showCreateSuccessAlert) ? 3 : 0)
             
-            // ✉️ 6位數大寫邀請碼輸入彈窗
+            // ✉️ 輸入邀請碼加入彈窗
             if showCustomJoinAlert {
                 Color.black.opacity(0.3).ignoresSafeArea().onTapGesture { withAnimation { showCustomJoinAlert = false } }
                 VStack(spacing: 20) {
@@ -276,7 +273,74 @@ struct ProjectListView: View {
                 .padding(24).background(Color(.systemBackground)).cornerRadius(24).shadow(color: Color.black.opacity(0.15), radius: 20).frame(maxWidth: 320)
             }
             
-            // 🌟 底部浮動輕量通知 (Toast)
+            // 🌟 ✉️ 帶有右上角叉叉 ❌ 的「專案建立成功」高質感獨立彈窗
+            if showCreateSuccessAlert {
+                Color.black.opacity(0.35)
+                    .ignoresSafeArea()
+                    .zIndex(100)
+                    .onTapGesture { withAnimation { showCreateSuccessAlert = false } }
+                
+                VStack(spacing: 22) {
+                    // 右上角精緻關閉叉叉按鈕
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.easeOut(duration: 0.2)) { showCreateSuccessAlert = false }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.gray.opacity(0.6))
+                        }
+                    }
+                    .padding(.bottom, -10)
+                    
+                    VStack(spacing: 12) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 55))
+                            .foregroundColor(.green)
+                        Text("已成功創建專案")
+                            .font(.system(size: 19, weight: .bold, design: .rounded))
+                        Text("快把下面的邀請碼分享給你的組員吧！")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Text(createdProjectInviteCode)
+                            .font(.system(size: 24, weight: .heavy, design: .monospaced))
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 15)
+                            .frame(height: 50)
+                            .background(Color.orange.opacity(0.06))
+                            .cornerRadius(12)
+                        
+                        Button(action: {
+                            UIPasteboard.general.string = createdProjectInviteCode
+                            triggerToast(message: "📋 邀請碼已成功複製！")
+                        }) {
+                            HStack {
+                                Image(systemName: "doc.on.doc.fill")
+                                Text("複製")
+                            }
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .frame(height: 50)
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+                .padding(24)
+                .background(Color(.systemBackground))
+                .cornerRadius(24)
+                .shadow(color: Color.black.opacity(0.18), radius: 20)
+                .frame(maxWidth: 340)
+                .zIndex(101) // 🌟 在最高階層，絕不卡死，叉叉 100% 靈敏
+            }
+            
+            // 底部浮動輕量通知 (Toast)
             if showToast {
                 VStack {
                     Spacer()
@@ -296,14 +360,10 @@ struct ProjectListView: View {
         }
     }
     
-    // ⚙️ 核心修正：將 profileSection 移回正確的 struct 內部括號裡！
+    // 個人設定視窗
     var profileSection: some View {
         VStack(spacing: 20) {
-            Text("個人設定")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(.gray)
-                .padding(.top)
-            
+            Text("個人設定").font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(.gray).padding(.top)
             PhotosPicker(selection: $selectedItem, matching: .images) {
                 VStack(spacing: 8) {
                     if let img = localImage {
@@ -355,8 +415,7 @@ struct ProjectListView: View {
                     }
                 } else {
                     HStack(spacing: 8) {
-                        Spacer()
-                        Text(userName).font(.system(size: 20, weight: .bold, design: .rounded))
+                        Spacer(); Text(userName).font(.system(size: 20, weight: .bold, design: .rounded))
                         Button(action: { inputName = userName; withAnimation { isEditingName = true } }) {
                             Image(systemName: "pencil.line").font(.system(size: 16)).foregroundColor(.blue)
                         }
@@ -368,40 +427,29 @@ struct ProjectListView: View {
             .padding(.horizontal, 25)
             
             Divider()
-            
             Button(action: {
                 projectManager.signOut { success in
-                    if success {
-                        showProfileSheet = false
-                        NotificationCenter.default.post(name: NSNotification.Name("userLoggedOut"), object: nil)
-                    }
+                    if success { showProfileSheet = false; NotificationCenter.default.post(name: NSNotification.Name("userLoggedOut"), object: nil) }
                 }
             }) {
-                HStack { Image(systemName: "rectangle.portrait.and.arrow.right"); Text("登出帳號") }
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 48).background(Color.red).cornerRadius(12).padding(.horizontal, 25)
+                HStack { Image(systemName: "rectangle.portrait.and.arrow.right"); Text("登出帳號") }.font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 48).background(Color.red).cornerRadius(12).padding(.horizontal, 25)
             }
             Spacer()
         }
     }
     
-    // 🛠️ 輔助函數群：獲取驗證碼字元
     private func getPinCharacter(at index: Int) -> String {
         let array = Array(combinedPinValue)
         if index < array.count { return String(array[index]) }
         return ""
     }
     
-    // 🛠️ 輔助函數群：觸發吐司通知
     func triggerToast(message: String) {
         self.toastMessage = message
         withAnimation(.spring()) { self.showToast = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation { self.showToast = false }
-        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { self.showToast = false } }
     }
     
-    // 🛠️ 輔助函數群：從 Firebase 刷新專案列表
     func fetchProjects() {
         guard let currentUser = Auth.auth().currentUser else { return }
         Firestore.firestore().collection("projects").whereField("members", arrayContains: currentUser.uid).getDocuments { querySnapshot, _ in
@@ -411,7 +459,6 @@ struct ProjectListView: View {
         }
     }
     
-    // 🛠️ 輔助函數群：加載大頭貼
     func loadSavedAvatar() {
         guard let currentUser = Auth.auth().currentUser else { return }
         Firestore.firestore().collection("users").document(currentUser.uid).getDocument { doc, _ in
