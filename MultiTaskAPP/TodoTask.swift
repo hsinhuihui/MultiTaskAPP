@@ -19,4 +19,6 @@ struct TodoTask: Identifiable, Codable {
     var id = UUID() // 用 UUID() 產生唯一 id
     var title: String
     var status: TaskStatus
+    var dueDate: Date? // 任務時間
+    var assigneeId: String? // 負責人
 }

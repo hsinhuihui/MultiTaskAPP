@@ -73,9 +73,6 @@ struct ProjectListView: View {
                                     Text("你好，\(userName) 👋")
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                         .foregroundColor(.primary)
-                                    Text("今天準備專注在哪個專案呢？")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.secondary)
                                 }
                                 
                                 Spacer()
@@ -145,7 +142,8 @@ struct ProjectListView: View {
                                             .foregroundColor(.blue)
                                     }
                                     
-                                    NavigationLink(destination: Text("這裡之後放 \(project.title) 的待辦事項")) {
+                                    // 暫時接到CntentVew()
+                                    NavigationLink(destination: ContentView()) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(project.title)
                                                 .font(.system(size: 17, weight: .bold, design: .rounded))
