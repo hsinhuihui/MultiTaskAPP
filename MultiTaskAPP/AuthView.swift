@@ -1,9 +1,13 @@
+//
+//  AuthView.swift
+//  MultiTaskAPP
+//
+
 import SwiftUI
 import FirebaseAuth
 
 struct AuthView: View {
     @State private var isSignUpMode = false
-    @State private var isUserLoggedIn = false
     
     @State private var email = ""
     @State private var password = ""
@@ -17,68 +21,69 @@ struct AuthView: View {
         case name, email, password
     }
     
+    // 主題暖橘色調
+    let themeOrange = Color(red: 0.98, green: 0.45, blue: 0.15)
+    let secondaryOrange = Color(red: 1.0, green: 0.58, blue: 0.25)
+    
     var body: some View {
-        if isUserLoggedIn {
-            ProjectListView() // 登入成功進入專案大廳
-        } else {
-            NavigationStack {
-                ZStack {
-                    // 🌟 1. 質感背景：極光深邃漸層
-                    LinearGradient(
-                        colors: [Color(.systemBackground), Color(.secondarySystemBackground), Color(.systemGray6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .ignoresSafeArea()
-                    
+        NavigationStack {
+            ZStack {
+                // 輕奶油暖橘微光漸層背景
+                LinearGradient(
+                    colors: [Color(red: 1.0, green: 0.6, blue: 0.3).opacity(0.12), Color(.systemBackground), Color(.secondarySystemBackground)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                ScrollView {
                     VStack(spacing: 30) {
-                        Spacer()
                         
-                        // 🌟 2. 升級版：高質感幾何品牌 Logo 🌟
+                        // 頂部向下挪動的間距
+                        Spacer()
+                            .frame(height: 70)
+                        
+                        // 幾何品牌 Logo 區域
                         VStack(spacing: 15) {
                             ZStack {
-                                // 後層的裝飾方塊
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(LinearGradient(colors: [.purple.opacity(0.3), .blue.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .fill(LinearGradient(colors: [themeOrange.opacity(0.25), secondaryOrange.opacity(0.15)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .frame(width: 68, height: 68)
                                     .rotationEffect(.degrees(15))
                                 
-                                // 中層的裝飾方塊
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(LinearGradient(colors: [.blue.opacity(0.2), .cyan.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .fill(LinearGradient(colors: [secondaryOrange.opacity(0.2), Color.orange.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .frame(width: 68, height: 68)
                                     .rotationEffect(.degrees(-10))
                                 
-                                // 前層的核心圖示：多功能重疊卡片
                                 Image(systemName: "rectangle.stack.fill")
                                     .font(.system(size: 34, weight: .semibold))
                                     .foregroundStyle(
                                         LinearGradient(
-                                            colors: [.blue, Color(red: 0.4, green: 0.3, blue: 0.9)],
+                                            colors: [themeOrange, secondaryOrange],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
                                     )
-                                    .shadow(color: Color.blue.opacity(0.3), radius: 5, x: 0, y: 3)
+                                    .shadow(color: themeOrange.opacity(0.3), radius: 5, x: 0, y: 3)
                                 
-                                // 右上角的發光小星芒
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.orange)
+                                    .foregroundColor(.yellow)
                                     .offset(x: 26, y: -26)
                             }
                             .padding(.bottom, 10)
                             
                             Text(isSignUpMode ? "建立新帳號" : "歡迎回來")
                                 .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
                             
                             Text(isSignUpMode ? "填寫以下資訊，開啟高效管理" : "請輸入您的帳號密碼繼續")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                        .padding(.top, 10)
                         
-                        // 🌟 3. 輸入框區塊（卡片式質感）
+                        // 輸入框區塊
                         VStack(spacing: 16) {
                             if isSignUpMode {
                                 customTextField(
@@ -111,38 +116,30 @@ struct AuthView: View {
                         
                         // 錯誤訊息提示
                         if !errorMessage.isEmpty {
-                            HStack(spacing: 5) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                Text(errorMessage)
-                            }
-                            .font(.footnote)
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 25)
-                            .multilineTextAlignment(.center)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            HellenisticTransition()
                         }
                         
-                        // 🌟 4. 主動態按鈕
+                        // 主動態登入按鈕
                         Button(action: handleAuthAction) {
-                            Text(isSignUpMode ? "立即註冊" : "登入系統")
+                            Text(isSignUpMode ? "立即註冊" : "登入")
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 52)
                                 .background(
                                     LinearGradient(
-                                        colors: [.blue, Color(red: 0.3, green: 0.4, blue: 0.9)],
+                                        colors: [themeOrange, secondaryOrange],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
                                 )
                                 .cornerRadius(14)
-                                .shadow(color: Color.blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                                .shadow(color: themeOrange.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                         .padding(.horizontal, 20)
-                        .buttonStyle(ScaleButtonStyle())
+                        .buttonStyle(ScaleButtonStyle()) // 🌟 這裡會正常讀取下方的型別
                         
-                        // 🌟 5. 底部模式切換按鈕
+                        // 底部模式切換按鈕
                         Button(action: {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                                 isSignUpMode.toggle()
@@ -153,7 +150,7 @@ struct AuthView: View {
                                 Text(isSignUpMode ? "已經有帳號了？" : "還沒有帳號嗎？")
                                     .foregroundColor(.secondary)
                                 Text(isSignUpMode ? "立即登入" : "免費註冊")
-                                    .foregroundColor(.blue)
+                                    .foregroundColor(themeOrange)
                                     .bold()
                             }
                             .font(.system(size: 15))
@@ -162,17 +159,25 @@ struct AuthView: View {
                         
                         Spacer()
                     }
-                }
-            }
-            .onAppear {
-                if Auth.auth().currentUser != nil {
-                    isUserLoggedIn = true
+                    .padding(.top, 20)
                 }
             }
         }
     }
     
-    // 高質感自訂輸入框組件
+    @ViewBuilder
+    private func HellenisticTransition() -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "exclamationmark.triangle.fill")
+            Text(errorMessage)
+        }
+        .font(.footnote)
+        .foregroundColor(.red)
+        .padding(.horizontal, 25)
+        .multilineTextAlignment(.center)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+    
     @ViewBuilder
     private func customTextField(
         icon: String,
@@ -184,7 +189,7 @@ struct AuthView: View {
     ) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundColor(focusedField == field ? .blue : .gray)
+                .foregroundColor(focusedField == field ? themeOrange : .gray)
                 .frame(width: 24)
                 .font(.system(size: 18))
                 .animation(.snappy, value: focusedField)
@@ -206,7 +211,7 @@ struct AuthView: View {
             RoundedRectangle(cornerRadius: 14)
                 .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(
-                    color: focusedField == field ? Color.blue.opacity(0.1) : Color.black.opacity(0.03),
+                    color: focusedField == field ? themeOrange.opacity(0.12) : Color.black.opacity(0.03),
                     radius: focusedField == field ? 8 : 4,
                     x: 0,
                     y: focusedField == field ? 4 : 2
@@ -214,12 +219,11 @@ struct AuthView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(focusedField == field ? .blue.opacity(0.5) : Color.clear, lineWidth: 1.5)
+                .stroke(focusedField == field ? themeOrange.opacity(0.5) : Color.clear, lineWidth: 1.5)
         )
         .animation(.snappy, value: focusedField)
     }
     
-    // Firebase 登入註冊邏輯
     private func handleAuthAction() {
         errorMessage = ""
         if email.isEmpty || password.isEmpty { errorMessage = "請填寫所有欄位"; return }
@@ -227,34 +231,32 @@ struct AuthView: View {
         
         if isSignUpMode {
             Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
-                if let error = error { self.errorMessage = error.localizedDescription; return }
-                
-                let changeRequest = authResult?.user.createProfileChangeRequest()
-                changeRequest?.displayName = self.displayName
-                changeRequest?.commitChanges { error in
-                    withAnimation { isUserLoggedIn = true }
-                    NotificationCenter.default.post(name: NSNotification.Name("userLoggedIn"), object: nil)
+                DispatchQueue.main.async {
+                    if let error = error { self.errorMessage = error.localizedDescription; return }
+                    
+                    let changeRequest = authResult?.user.createProfileChangeRequest()
+                    changeRequest?.displayName = self.displayName
+                    changeRequest?.commitChanges { error in
+                        DispatchQueue.main.async {
+                            NotificationCenter.default.post(name: NSNotification.Name("userLoggedIn"), object: nil)
+                        }
+                    }
                 }
             }
         } else {
             Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-                if let error = error { self.errorMessage = error.localizedDescription; return }
-                withAnimation { isUserLoggedIn = true }
-                NotificationCenter.default.post(name: NSNotification.Name("userLoggedIn"), object: nil)
+                DispatchQueue.main.async {
+                    if let error = error { self.errorMessage = error.localizedDescription; return }
+                    NotificationCenter.default.post(name: NSNotification.Name("userLoggedIn"), object: nil)
+                }
             }
         }
     }
 }
-
-// 點擊按鈕時的彈性縮小效果
 struct ScaleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
-}
-
-#Preview {
-    AuthView()
 }
