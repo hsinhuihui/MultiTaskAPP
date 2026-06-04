@@ -153,7 +153,10 @@ struct ProjectListView: View {
                                     HStack(alignment: .center, spacing: 20) {
                                         // 📊 左側橫向進度條
                                         VStack(alignment: .leading, spacing: 6) {
-                                            let currentProgress: Double = 0.65
+                                            //let currentProgress: Double = 0.65
+                                            
+                                            // 讀取雲端即時同步過來的進度，並顯示在列表畫面上
+                                            let currentProgress = project.progress ?? 0.0
                                             
                                             GeometryReader { geo in
                                                 ZStack(alignment: .leading) {

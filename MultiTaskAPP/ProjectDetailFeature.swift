@@ -84,7 +84,29 @@ class ProjectDetailViewModel: ObservableObject {
                         isCompleted: isCompleted
                     )
                 }
+                // 即時計算最新進度並直接同步回填至雲端專案文件
+                self.updateProjectProgressInFirestore(projectId: projectId)
             }
+    }
+    
+    // 輔助計算與上傳進度的方法
+    private func updateProjectProgressInFirestore(projectId: String) {
+        let totalTasks = self.tasks.count
+        
+        // 如果目前沒有任務，進度就是 0.0
+        guard totalTasks > 0 else {
+            db.collection("projects").document(projectId).updateData(["progress": 0.0])
+            return
+        }
+        
+        // 計算已完成的任務百分比
+        let completedTasks = self.tasks.filter { $0.isCompleted }.count
+        let calculatedProgress = Double(completedTasks) / Double(totalTasks)
+        
+        // 直接更新雲端該專案的 progress 欄位
+        db.collection("projects").document(projectId).updateData([
+            "progress": calculatedProgress
+        ])
     }
 
     func addTask(projectId: String, title: String, assignee: String, deadline: Date) {
@@ -143,59 +165,67 @@ struct ProjectDetailFeatureView: View {
     @State private var selectedProjectDate = Date()
 
     var body: some View {
-        List {
-            Section(header: Text("專案資訊")) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("名稱：\(project.title)").font(.title3).bold()
-
-                    HStack {
-                        Image(systemName: "calendar.badge.clock")
-                        if let deadline = viewModel.projectDeadline {
-                            HStack(spacing: 0) {
-                                Text("專案截止：")
-                                Text(deadline, style: .date)
-                            }
-                            .foregroundColor(deadline < Date() ? .red : .primary)
-                        } else {
-                            Text("專案截止：尚未設定").foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button("設定日期") { showingDatePicker.toggle() }.font(.caption).buttonStyle(.bordered)
-                    }
-
-                    if showingDatePicker {
-                        DatePicker("選擇截止日期", selection: $selectedProjectDate, displayedComponents: [.date, .hourAndMinute])
-                            .datePickerStyle(.compact)
-                            .onChange(of: selectedProjectDate) { oldValue, newValue in
-                                viewModel.updateProjectDeadline(projectId: project.id ?? "", newDate: newValue)
-                                showingDatePicker = false
-                            }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            Section(header: Text("任務列表 (\(viewModel.tasks.count))")) {
-                if viewModel.tasks.isEmpty {
-                    Text("目前沒有任務，請點擊右上角新增").foregroundColor(.secondary)
-                } else {
-                    ForEach(viewModel.tasks) { task in
+        VStack(spacing: 16) {
+            
+            // 進度條
+            ProjectProgressView(tasks: viewModel.tasks)
+                            .padding(.horizontal)
+                            .padding(.top, 10)
+            
+            List {
+                Section(header: Text("專案資訊")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("名稱：\(project.title)").font(.title3).bold()
+                        
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(task.title).font(.headline)
-                                HStack {
-                                    Label(task.assignee.isEmpty ? "未分配" : task.assignee, systemImage: "person.crop.circle")
-                                        .foregroundColor(.blue)
-                                    Spacer()
-                                    Label { Text(task.deadline, style: .date) } icon: { Image(systemName: "clock") }
-                                        .foregroundColor(task.deadline < Date() ? .red : .secondary)
+                            Image(systemName: "calendar.badge.clock")
+                            if let deadline = viewModel.projectDeadline {
+                                HStack(spacing: 0) {
+                                    Text("專案截止：")
+                                    Text(deadline, style: .date)
                                 }
-                                .font(.caption)
+                                .foregroundColor(deadline < Date() ? .red : .primary)
+                            } else {
+                                Text("專案截止：尚未設定").foregroundColor(.secondary)
                             }
+                            Spacer()
+                            Button("設定日期") { showingDatePicker.toggle() }.font(.caption).buttonStyle(.bordered)
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) { viewModel.deleteTask(taskId: task.id) } label: { Label("刪除", systemImage: "trash") }
-                            Button { editingTask = task } label: { Label("編輯", systemImage: "pencil") }.tint(.orange)
+                        
+                        if showingDatePicker {
+                            DatePicker("選擇截止日期", selection: $selectedProjectDate, displayedComponents: [.date, .hourAndMinute])
+                                .datePickerStyle(.compact)
+                                .onChange(of: selectedProjectDate) { oldValue, newValue in
+                                    viewModel.updateProjectDeadline(projectId: project.id ?? "", newDate: newValue)
+                                    showingDatePicker = false
+                                }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                Section(header: Text("任務列表 (\(viewModel.tasks.count))")) {
+                    if viewModel.tasks.isEmpty {
+                        Text("目前沒有任務，請點擊右上角新增").foregroundColor(.secondary)
+                    } else {
+                        ForEach(viewModel.tasks) { task in
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(task.title).font(.headline)
+                                    HStack {
+                                        Label(task.assignee.isEmpty ? "未分配" : task.assignee, systemImage: "person.crop.circle")
+                                            .foregroundColor(.blue)
+                                        Spacer()
+                                        Label { Text(task.deadline, style: .date) } icon: { Image(systemName: "clock") }
+                                            .foregroundColor(task.deadline < Date() ? .red : .secondary)
+                                    }
+                                    .font(.caption)
+                                }
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) { viewModel.deleteTask(taskId: task.id) } label: { Label("刪除", systemImage: "trash") }
+                                Button { editingTask = task } label: { Label("編輯", systemImage: "pencil") }.tint(.orange)
+                            }
                         }
                     }
                 }
@@ -353,5 +383,22 @@ struct ProjectEditTaskSheet: View {
                 deadline = task.deadline
             }
         }
+    }
+}
+
+// MARK: - 預覽畫面 (Preview)
+#Preview {
+    // 1. 建立一個假的專案資料供預覽使用
+    let dummyProject = Project(
+        id: "TEST_PROJECT_ID",
+        title: "測試專案：iOS App 開發",
+        ownerId: "USER_123",
+        members: ["USER_123"],
+        inviteCode: "123456"
+    )
+    
+    // 2. 為了讓導覽列 (NavigationBar) 正常顯示，通常會在預覽時包一層 NavigationStack
+    NavigationStack {
+        ProjectDetailFeatureView(project: dummyProject)
     }
 }
