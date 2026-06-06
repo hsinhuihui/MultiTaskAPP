@@ -107,19 +107,31 @@ class ProjectManager {
         }
     }
     
-    // ✏️ 更改使用者暱稱
+    // ✏️ 更改使用者暱稱 (🌟 已完美修復同步上傳至資料庫的 Bug！)
     func updateDisplayName(newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let currentUser = Auth.auth().currentUser else { return }
         let changeRequest = currentUser.createProfileChangeRequest()
         changeRequest.displayName = newName
         
         changeRequest.commitChanges { error in
-            // 🌟 修正完成：只負責標準回傳 success/failure，由大廳自己觸發通知
-            DispatchQueue.main.async {
-                if let error = error {
-                    completion(.failure(error))
-                } else {
-                    completion(.success(()))
+            if let error = error {
+                DispatchQueue.main.async { completion(.failure(error)) }
+                return
+            }
+            
+            // 🌟 核心修正點：當 Auth 帳戶更改成功時，同步將「displayName」欄位寫進 Firestore 的 users 文件中！
+            // 使用 merge: true 可以保證「絕對不覆蓋」組員原先已經上傳好的 base64 大頭貼資料
+            Firestore.firestore().collection("users").document(currentUser.uid).setData([
+                "displayName": newName,
+                "email": currentUser.email ?? ""
+            ], merge: true) { fsError in
+                DispatchQueue.main.async {
+                    if let fsError = fsError {
+                        completion(.failure(fsError))
+                    } else {
+                        print("🎉 暱稱成功同步至 Firestore 雲端資料庫：\(newName)")
+                        completion(.success(()))
+                    }
                 }
             }
         }

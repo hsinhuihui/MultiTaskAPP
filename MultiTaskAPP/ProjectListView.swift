@@ -39,9 +39,11 @@ struct ProjectListView: View {
     @State private var taskManager = TaskManager()
     let projectManager = ProjectManager()
     
-    // 暖橘愛馬仕核心主題色
-    let themeOrange = Color(red: 0.98, green: 0.45, blue: 0.15)
+    // 🎨 完美對齊：導入 UserTasksView 的暖色調調色盤
+    let themeOrange = Color(red: 0.95, green: 0.48, blue: 0.12)       // 主色：溫暖深橘
     let secondaryOrange = Color(red: 1.0, green: 0.58, blue: 0.25)
+    let lightWarmOrange = Color(red: 1.0, green: 0.94, blue: 0.88)   // 輔色：淺琥珀米色
+    let warmBackground = Color(red: 0.98, green: 0.97, blue: 0.95)   // 背景：優雅暖白/燕麥色
     
     var body: some View {
         NavigationStack {
@@ -94,7 +96,7 @@ struct ProjectListView: View {
                                 .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .padding(.vertical, 8)
                                 .padding(.horizontal, 12)
-                                .background(themeOrange.opacity(0.08))
+                                .background(lightWarmOrange)
                                 .foregroundColor(themeOrange)
                                 .cornerRadius(10)
                             }
@@ -106,7 +108,7 @@ struct ProjectListView: View {
                     .listRowSeparator(.hidden)
                     
                     // MARK: - 區塊三：一格一格圓角卡片渲染區 📊
-                    Section {
+                    Section{
                         // 顯示擁有專案
                         ForEach(projects, id: \.inviteCode) { project in
                             ZStack {
@@ -114,7 +116,7 @@ struct ProjectListView: View {
                                 NavigationLink {
                                     ProjectDetailFeatureView(project: project)
                                         .onDisappear {
-                                            // 當內頁關閉（刪除、退出、返回），大廳即刻同步刷新
+                                            // 當使用者從內頁返回大廳時，大廳會立刻自動重新載入，讓剛改好的截止日期秒更新！
                                             fetchProjects()
                                         }
                                 } label: {
@@ -133,7 +135,7 @@ struct ProjectListView: View {
                                         
                                         Spacer()
                                         
-                                        // 📋 右上角精緻獨立複製按鈕
+                                        // 📋 右上角精緻獨立複製按鈕 (採純手勢 onTapGesture，絕對不干擾卡片跳轉)
                                         HStack(spacing: 4) {
                                             Image(systemName: "doc.on.doc.fill").font(.system(size: 8))
                                             Text(project.inviteCode).font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -141,7 +143,7 @@ struct ProjectListView: View {
                                         .foregroundColor(themeOrange)
                                         .padding(.vertical, 4)
                                         .padding(.horizontal, 8)
-                                        .background(themeOrange.opacity(0.08))
+                                        .background(lightWarmOrange)
                                         .cornerRadius(6)
                                         .onTapGesture {
                                             UIPasteboard.general.string = project.inviteCode
@@ -153,15 +155,12 @@ struct ProjectListView: View {
                                     HStack(alignment: .center, spacing: 20) {
                                         // 📊 左側橫向進度條
                                         VStack(alignment: .leading, spacing: 6) {
-                                            //let currentProgress: Double = 0.65
-                                            
-                                            // 讀取雲端即時同步過來的進度，並顯示在列表畫面上
                                             let currentProgress = project.progress ?? 0.0
                                             
                                             GeometryReader { geo in
                                                 ZStack(alignment: .leading) {
                                                     Capsule()
-                                                        .fill(Color(.systemGray5))
+                                                        .fill(Color.gray.opacity(0.1))
                                                         .frame(height: 6)
                                                     
                                                     Capsule()
@@ -184,16 +183,17 @@ struct ProjectListView: View {
                                                 .font(.system(size: 10))
                                                 .foregroundColor(.gray)
                                             
-                                            Text("10/26 11:30")
+                                            // 🌟 專業修正點：在這裡呼叫下方寫好的轉換工具，即時呈現真實的專案截止日期！
+                                            Text(formatProjectDeadline(project.deadline))
                                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(project.deadline != nil && project.deadline! < Date() ? .red : .primary) // 貼心提醒：過期就自動亮紅字！
                                         }
                                     }
                                 }
                                 .padding(18)
-                                .background(Color(.secondarySystemGroupedBackground))
+                                .background(Color.white)
                                 .cornerRadius(16)
-                                .shadow(color: Color.black.opacity(0.02), radius: 6, x: 0, y: 3)
+                                .shadow(color: themeOrange.opacity(0.04), radius: 10, x: 0, y: 4)
                             }
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -202,10 +202,10 @@ struct ProjectListView: View {
                     .listRowSeparator(.hidden)
                 }
                 .listStyle(.plain)
-                .background(Color(.systemGroupedBackground))
+                .background(warmBackground)
                 .blur(radius: (showCustomJoinAlert || showCreateProjectAlert) ? 3 : 0)
                 
-                // 🌟 遮罩背景層
+                // 遮罩背景層
                 if showCustomJoinAlert || showCreateProjectAlert {
                     Color.black.opacity(0.35)
                         .ignoresSafeArea()
@@ -219,7 +219,7 @@ struct ProjectListView: View {
                         }
                 }
                 
-                // 🌟 修正點：大括號回歸！6 連格邀請碼小視窗現在重新完美的在 ZStack 內前台懸浮渲染！
+                // 智慧 6 連格邀請碼小視窗
                 if showCustomJoinAlert {
                     VStack(spacing: 24) {
                         HStack {
@@ -320,7 +320,6 @@ struct ProjectListView: View {
                 }
             }
         }
-        .viewBuilderContext()
         .onAppear {
             fetchProjects()
             loadSavedAvatar()
@@ -394,7 +393,15 @@ struct ProjectListView: View {
         }
     }
     
-    // MARK: - 後台連線核心工具功能
+    // MARK: - 後台連線核心工具功能 & 🌟 新增：截止日期轉換格式化工具
+    
+    private func formatProjectDeadline(_ date: Date?) -> String {
+        guard let actualDate = date else { return "尚未設定" }
+        let formatter = DateFormatter()
+        // 配合設計圖的高質感格式：例如 "10/26 11:30"
+        formatter.dateFormat = "MM/dd HH:mm"
+        return formatter.string(from: actualDate)
+    }
     
     private func getPinCharacter(at index: Int) -> String {
         let array = Array(combinedPinValue)
@@ -426,12 +433,5 @@ struct ProjectListView: View {
                 DispatchQueue.main.async { self.localImage = savedImage }
             }
         }
-    }
-}
-
-// 貼心擴充延伸，消融 SwiftUI 預設縮進
-extension View {
-    @ViewBuilder func viewBuilderContext() -> some View {
-        if #available(iOS 16.0, *) { self.scrollContentBackground(.hidden) } else { self }
     }
 }

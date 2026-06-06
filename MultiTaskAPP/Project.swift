@@ -16,4 +16,5 @@ struct Project: Codable, Identifiable {
     var members: [String]            // 成員名單：包含所有加入成員的 UID 陣列
     var inviteCode: String           // 該專案專屬的 6 位數隨機邀請碼
     var progress: Double?            // 專案的總進度
+    var deadline: Date?
 }
