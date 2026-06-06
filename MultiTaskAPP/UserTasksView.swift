@@ -1,109 +1,287 @@
-// UserTasksView.swift
 import Foundation
 import SwiftUI
 
 struct UserTasksView: View {
-    // 💡 替換成真實的 TaskManager
     @State private var taskManager = TaskManager()
+    
+    // 用來記錄目前「被收起」的日期群組
+    @State private var collapsedDates: Set<Date> = []
+    
+    // 🎨 暖色調調色盤
+    private let warmOrange = Color(red: 0.95, green: 0.48, blue: 0.12)     // 主色：溫暖深橘
+    private let lightWarmOrange = Color(red: 1.0, green: 0.94, blue: 0.88) // 輔色：淺琥珀米色
+    private let warmBackground = Color(red: 0.98, green: 0.97, blue: 0.95) // 背景：優雅暖白/燕麥色
+    
+    // 💡 新增：全域任務統計數據
+    private var totalTasksCount: Int {
+        taskManager.tasks.count
+    }
+    
+    private var completedTasksCount: Int {
+        taskManager.tasks.filter { $0.isCompleted }.count
+    }
+    
+    private var completionRate: Double {
+        totalTasksCount > 0 ? Double(completedTasksCount) / Double(totalTasksCount) : 0.0
+    }
     
     var body: some View {
         NavigationStack {
-            List {
-                // 第一層：依日期展開
-                ForEach(groupedByDate, id: \.dateString) { dateGroup in
-                    DisclosureGroup(dateGroup.dateString) {
+            ZStack {
+                // 全域暖色調背景
+                warmBackground.ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: 20) {
                         
-                        // 第二層：依時間展開
-                        ForEach(dateGroup.timeGroups, id: \.timeString) { timeGroup in
-                            DisclosureGroup(timeGroup.timeString) {
-                                
-                                // 第三層：顯示任務清單
-                                ForEach(Array(timeGroup.tasks.enumerated()), id: \.element.id) { index, task in
-                                    HStack {
-                                        Text("\(index + 1).")
-                                            .foregroundColor(.gray)
-                                        
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(task.title)
-                                                // 💡 修改：依據 isCompleted 決定是否畫刪除線
-                                                .strikethrough(task.isCompleted, color: .gray)
-                                            
-                                            if let projectName = task.projectName {
-                                                Text(projectName)
-                                                    .font(.caption2)
-                                                    .foregroundColor(.secondary)
-                                            }
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        // 💡 修改：直接使用 task.isCompleted 來判斷
-                                        let isDone = task.isCompleted
-                                        Text(isDone ? "已完成" : "未完成")
-                                            .font(.caption2)
-                                            .padding(4)
-                                            .background(isDone ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
-                                            .foregroundColor(isDone ? .green : .gray)
-                                            .cornerRadius(4)
-                                    }
-                                    .padding(.leading, 8)
-                                    .padding(.vertical, 2)
-                                }
-                            }
-                            .font(.headline)
+                        // 💡 新增：頂部全域進度總覽面板
+                        if totalTasksCount > 0 {
+                            overviewProgressCard
+                                .padding(.top, 5)
+                        }
+                        
+                        // 依日期展開卡片列表
+                        ForEach(groupedByDate, id: \.date) { dateGroup in
+                            dateSection(for: dateGroup)
                         }
                     }
-                    .font(.title3.bold())
+                    .padding(.horizontal)
+                    .padding(.top, 10)
+                    .padding(.bottom, 30)
                 }
             }
             .navigationTitle("我的任務")
             .onAppear {
-                // 💡 畫面出現時，呼叫 Firebase 監聽當前使用者的任務
                 taskManager.listenToUserTasks()
             }
         }
     }
     
-    // MARK: - 輔助函式與分組邏輯
-    
-    struct DateGroup {
-        let dateString: String
-        let timeGroups: [TimeGroup]
+    // MARK: - 🎯 頂部全域進度總覽卡片
+    private var overviewProgressCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("任務完成率")
+                        .font(.footnote)
+                        .fontWeight(.bold)
+                        .foregroundColor(.gray)
+                    
+                    // 🌟 數值顯示：完成任務數 / 所有任務數
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(completedTasksCount)")
+                            .font(.system(size: 32, design: .rounded))
+                            .bold()
+                            .foregroundColor(warmOrange)
+                        Text("/")
+                            .font(.title2)
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("\(totalTasksCount)")
+                            .font(.title3.weight(.medium))
+                            .foregroundColor(.secondary)
+                        Text("個任務")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .padding(.leading, 2)
+                    }
+                }
+                
+                Spacer()
+                
+                // 右側百分比顯示
+                Text("\(Int(completionRate * 100))%")
+                    .font(.system(.title2, design: .rounded))
+                    .bold()
+                    .foregroundColor(warmOrange)
+                    .padding(12)
+                    .background(lightWarmOrange)
+                    .clipShape(Circle())
+            }
+            
+            // 溫暖色調的進度條
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.gray.opacity(0.1))
+                        .frame(height: 8)
+                    
+                    Capsule()
+                        .fill(warmOrange)
+                        .frame(width: geo.size.width * completionRate, height: 8)
+                        // 當數值改變時，進度條會有流暢的橫向滑動動畫
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: completionRate)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding(18)
+        .background(Color.white)
+        .cornerRadius(20)
+        .shadow(color: warmOrange.opacity(0.04), radius: 12, x: 0, y: 6)
     }
-    struct TimeGroup {
-        let timeString: String
+    
+    // MARK: - 📅 日期群組區塊
+    @ViewBuilder
+    private func dateSection(for dateGroup: DateGroup) -> some View {
+        let isCollapsed = collapsedDates.contains(dateGroup.date)
+        let groupTotal = dateGroup.tasks.count
+        let groupCompleted = dateGroup.tasks.filter { $0.isCompleted }.count
+        
+        VStack(alignment: .leading, spacing: 12) {
+            // 標題列
+            Button {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    if isCollapsed {
+                        collapsedDates.remove(dateGroup.date)
+                    } else {
+                        collapsedDates.insert(dateGroup.date)
+                    }
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "calendar.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(warmOrange)
+                    
+                    Text(formatDateTitle(dateGroup.date))
+                        .font(.title3.bold())
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    // 💡 修改：將原本的單純數量標籤，改為精確的「完成數/總數 完成」
+                    Text("\(groupCompleted)/\(groupTotal) 完成")
+                        .font(.caption.bold())
+                        .foregroundColor(warmOrange)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(lightWarmOrange)
+                        .cornerRadius(10)
+                    
+                    Image(systemName: "chevron.up")
+                        .font(.caption.bold())
+                        .foregroundColor(warmOrange)
+                        .rotationEffect(.degrees(isCollapsed ? 180 : 0))
+                }
+                .padding(.bottom, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            
+            // 任務卡片列表
+            if !isCollapsed {
+                ForEach(dateGroup.tasks) { task in
+                    taskCard(for: task)
+                }
+            }
+        }
+        .padding(.vertical, 10)
+    }
+    
+    // MARK: - 🏷️ 單一任務卡片設計
+    @ViewBuilder
+    private func taskCard(for task: TodoTask) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            // 左側：時間與狀態圓圈
+            VStack(spacing: 8) {
+                Text(task.dueDate != nil ? timeFormatter.string(from: task.dueDate!) : "--:--")
+                    .font(.caption2.bold())
+                    .foregroundColor(.gray)
+                
+                Button {
+                    taskManager.toggleTaskStatus(task: task)
+                } label: {
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(task.isCompleted ? .green : warmOrange)
+                }
+                .buttonStyle(.plain)
+            }
+            .frame(width: 45)
+            
+            // 中間：標題與專案標籤
+            VStack(alignment: .leading, spacing: 8) {
+                Text(task.title)
+                    .font(.body.weight(.semibold))
+                    .foregroundColor(task.isCompleted ? .gray : .primary)
+                    .strikethrough(task.isCompleted, color: .gray)
+                
+                if let projectName = task.projectName {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 10))
+                        Text(projectName)
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(warmOrange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(lightWarmOrange)
+                    .cornerRadius(6)
+                }
+            }
+            
+            Spacer()
+            
+            // 右側：選項按鈕與狀態膠囊
+            VStack(alignment: .trailing, spacing: 12) {
+                Button {
+                    // 選項按鈕點擊事件
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.headline)
+                        .foregroundColor(.gray.opacity(0.6))
+                }
+                
+                Spacer(minLength: 0)
+                
+                Text(task.isCompleted ? "已完成" : "未完成")
+                    .font(.system(size: 10, weight: .bold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(task.isCompleted ? Color.green.opacity(0.12) : warmOrange.opacity(0.12))
+                    .foregroundColor(task.isCompleted ? .green : warmOrange)
+                    .cornerRadius(6)
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: warmOrange.opacity(0.06), radius: 10, x: 0, y: 4)
+    }
+    
+    // MARK: - 邏輯與分組架構
+    struct DateGroup {
+        let date: Date
         let tasks: [TodoTask]
     }
     
     private var groupedByDate: [DateGroup] {
-        // 💡 1. 從 taskManager 取出真實資料，並過濾出有時間的任務
         let validTasks = taskManager.tasks.filter { $0.dueDate != nil }
         
-        let dateDictionary = Dictionary(grouping: validTasks) { task -> String in
-            dateFormatter.string(from: task.dueDate!)
+        let grouped = Dictionary(grouping: validTasks) { task -> Date in
+            let components = Calendar.current.dateComponents([.year, .month, .day], from: task.dueDate!)
+            return Calendar.current.date(from: components) ?? task.dueDate!
         }
         
-        return dateDictionary.map { dateKey, tasksInDate in
-            let timeDictionary = Dictionary(grouping: tasksInDate) { task -> String in
-                timeFormatter.string(from: task.dueDate!)
-            }
-            
-            let timeGroups = timeDictionary.map { timeKey, tasksInTime in
-                // 依時間排序
-                TimeGroup(timeString: timeKey, tasks: tasksInTime.sorted(by: { $0.dueDate! < $1.dueDate! }))
-            }.sorted { $0.timeString < $1.timeString }
-            
-            return DateGroup(dateString: dateKey, timeGroups: timeGroups)
-        }
-        .sorted { $0.dateString < $1.dateString } // 依日期字串排序
+        return grouped.map { date, tasks in
+            let sortedTasks = tasks.sorted { $0.dueDate! < $1.dueDate! }
+            return DateGroup(date: date, tasks: sortedTasks)
+        }.sorted { $0.date < $1.date }
     }
     
-    // MARK: - 日期格式化工具
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M/d (E)"
-        formatter.locale = Locale(identifier: "zh_Hant_TW")
-        return formatter
+    // MARK: - 輔助格式化工具
+    private func formatDateTitle(_ date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return "今天"
+        } else if Calendar.current.isDateInTomorrow(date) {
+            return "明天"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "M月d日 (E)"
+            formatter.locale = Locale(identifier: "zh_Hant_TW")
+            return formatter.string(from: date)
+        }
     }
     
     private var timeFormatter: DateFormatter {
