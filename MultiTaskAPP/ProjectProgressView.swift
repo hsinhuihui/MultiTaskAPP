@@ -91,11 +91,11 @@ struct ProjectProgressView: View {
 // MARK: - Preview
 #Preview {
     ZStack {
-        Color(white: 0.95).ignoresSafeArea() // 給個淺灰底色方便看白底卡片
+        Color(white: 0.95).ignoresSafeArea()
         ProjectProgressView(tasks: [
-            ProjectDetailTask(id: "1", projectId: "p1", title: "任務一", assignee: "A", deadline: Date(), isCompleted: true),
-            ProjectDetailTask(id: "2", projectId: "p1", title: "任務二", assignee: "B", deadline: Date(), isCompleted: false),
-            ProjectDetailTask(id: "3", projectId: "p1", title: "任務三", assignee: "C", deadline: Date(), isCompleted: true)
+            ProjectDetailTask(id: "1", projectId: "p1", title: "任務一", assignee: "A", deadline: Date(), isCompleted: true, status: .done),
+            ProjectDetailTask(id: "2", projectId: "p1", title: "任務二", assignee: "B", deadline: Date(), isCompleted: false, status: .todo),
+            ProjectDetailTask(id: "3", projectId: "p1", title: "任務三", assignee: "C", deadline: Date(), isCompleted: true, status: .done)
         ])
         .padding()
     }
