@@ -2,40 +2,66 @@
 import SwiftUI
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
 
 @Observable
 class TaskManager {
     var tasks: [TodoTask] = []
     private var db = Firestore.firestore()
-    
-    // 💡 新增：用來儲存 Firebase 的監聽器，方便在不需要時移除
     private var listenerRegistration: ListenerRegistration?
     
-    // 💡 修改：傳入 projectId，只抓取該專案的任務
     func listenToTasks(for projectId: String) {
-        // 先移除舊的監聽器，避免重複監聽
         listenerRegistration?.remove()
         
-        // 針對 tasks 集合中，projectId 符合的任務進行監聽
-        listenerRegistration = db.collection("tasks")
+        listenerRegistration = db.collection("project_tasks")
             .whereField("projectId", isEqualTo: projectId)
             .addSnapshotListener { querySnapshot, error in
                 guard let documents = querySnapshot?.documents else { return }
-                // 即時更新 @Observable 的 tasks 陣列，SwiftUI 畫面會自動重繪
                 self.tasks = documents.compactMap { doc -> TodoTask? in
                     try? doc.data(as: TodoTask.self)
                 }
             }
     }
     
-    // 更新雲端狀態
-    func updateTaskStatus(task: TodoTask, newStatus: TaskStatus) {
-        db.collection("tasks").document(task.id.uuidString).updateData([
-            "status": newStatus.rawValue
+    // 💡 讀取「目前登錄使用者」負責的所有任務
+    func listenToUserTasks() {
+        // 🌟 關鍵修改：因為 Firebase 存的是 Email，所以這裡要抓當前用戶的 email
+        guard let currentUserEmail = Auth.auth().currentUser?.email else {
+            print("無法取得使用者任務：找不到使用者的 Email")
+            return
+        }
+        
+        listenerRegistration?.remove()
+        
+        // 🌟 關鍵修改：使用 "assignee" 欄位，並且拿 currentUserEmail 來比對
+        listenerRegistration = db.collection("project_tasks")
+            .whereField("assignee", isEqualTo: currentUserEmail)
+            .addSnapshotListener { querySnapshot, error in
+                if let error = error {
+                    print("讀取任務錯誤: \(error.localizedDescription)")
+                    return
+                }
+                guard let documents = querySnapshot?.documents else { return }
+                
+                self.tasks = documents.compactMap { doc -> TodoTask? in
+                    do {
+                        return try doc.data(as: TodoTask.self)
+                    } catch {
+                        print("❌ 解析任務失敗: \(error)")
+                        return nil
+                    }
+                }
+            }
+    }
+    
+    // 💡 配合資料模型更新：改為切換 isCompleted 布林值
+    func toggleTaskStatus(task: TodoTask) {
+        let newStatus = !task.isCompleted
+        db.collection("project_tasks").document(task.id).updateData([
+            "isCompleted": newStatus
         ])
     }
     
-    // 物件銷毀時記得移除監聽
     deinit {
         listenerRegistration?.remove()
     }

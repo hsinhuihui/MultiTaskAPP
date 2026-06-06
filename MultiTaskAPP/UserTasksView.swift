@@ -1,72 +1,71 @@
-//
-//  UserTasksView.swift
-//  MultiTaskAPP
-//
-//  Created by 訪客使用者 on 2026/6/1.
-//
-
+// UserTasksView.swift
 import Foundation
 import SwiftUI
 
 struct UserTasksView: View {
-    // 假設這是從 TaskManager 取得並過濾出「屬於當前使用者」的任務
-    @State private var tasks: [TodoTask] = []
+    // 💡 替換成真實的 TaskManager
+    @State private var taskManager = TaskManager()
     
     var body: some View {
         NavigationStack {
             List {
-                // 第一層：依日期展開 (例如：6/12 (一))
+                // 第一層：依日期展開
                 ForEach(groupedByDate, id: \.dateString) { dateGroup in
                     DisclosureGroup(dateGroup.dateString) {
                         
-                        // 第二層：依時間展開 (例如：12:00)
+                        // 第二層：依時間展開
                         ForEach(dateGroup.timeGroups, id: \.timeString) { timeGroup in
                             DisclosureGroup(timeGroup.timeString) {
                                 
-                                // 第三層：顯示任務清單 (例如：1. 寫簡報)
+                                // 第三層：顯示任務清單
                                 ForEach(Array(timeGroup.tasks.enumerated()), id: \.element.id) { index, task in
                                     HStack {
                                         Text("\(index + 1).")
                                             .foregroundColor(.gray)
-                                        Text(task.title)
-                                            .strikethrough(task.status == .done, color: .gray)
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(task.title)
+                                                // 💡 修改：依據 isCompleted 決定是否畫刪除線
+                                                .strikethrough(task.isCompleted, color: .gray)
+                                            
+                                            if let projectName = task.projectName {
+                                                Text(projectName)
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                        
                                         Spacer()
-                                        // 狀態小標籤
-                                        Text(task.status.rawValue)
+                                        
+                                        // 💡 修改：直接使用 task.isCompleted 來判斷
+                                        let isDone = task.isCompleted
+                                        Text(isDone ? "已完成" : "未完成")
                                             .font(.caption2)
                                             .padding(4)
-                                            .background(statusColor(task.status).opacity(0.2))
-                                            .foregroundColor(statusColor(task.status))
+                                            .background(isDone ? Color.green.opacity(0.2) : Color.gray.opacity(0.2))
+                                            .foregroundColor(isDone ? .green : .gray)
                                             .cornerRadius(4)
                                     }
                                     .padding(.leading, 8)
                                     .padding(.vertical, 2)
                                 }
                             }
-                            .font(.headline) // 時間層級的字體稍微強調
+                            .font(.headline)
                         }
                     }
-                    .font(.title3.bold()) // 日期層級的字體再放大一點
+                    .font(.title3.bold())
                 }
             }
-            .navigationTitle("我的專屬任務")
+            .navigationTitle("我的任務")
             .onAppear {
-                loadMockData() // 載入測試資料
+                // 💡 畫面出現時，呼叫 Firebase 監聽當前使用者的任務
+                taskManager.listenToUserTasks()
             }
         }
     }
     
     // MARK: - 輔助函式與分組邏輯
     
-    private func statusColor(_ status: TaskStatus) -> Color {
-        switch status {
-        case .todo: return .gray
-        case .inProgress: return .orange
-        case .done: return .green
-        }
-    }
-    
-    // 用來儲存分組後結構的型別
     struct DateGroup {
         let dateString: String
         let timeGroups: [TimeGroup]
@@ -76,64 +75,41 @@ struct UserTasksView: View {
         let tasks: [TodoTask]
     }
     
-    // 動態計算分組資料
     private var groupedByDate: [DateGroup] {
-        // 1. 過濾出有時間的任務
-        let validTasks = tasks.filter { $0.dueDate != nil }
+        // 💡 1. 從 taskManager 取出真實資料，並過濾出有時間的任務
+        let validTasks = taskManager.tasks.filter { $0.dueDate != nil }
         
-        // 2. 按照「日期字串」分組 (例如："6/12 (一)")
         let dateDictionary = Dictionary(grouping: validTasks) { task -> String in
             dateFormatter.string(from: task.dueDate!)
         }
         
-        // 3. 整理成陣列並排序
         return dateDictionary.map { dateKey, tasksInDate in
-            
-            // 4. 在每個日期內，按照「時間字串」分組 (例如："12:00")
             let timeDictionary = Dictionary(grouping: tasksInDate) { task -> String in
                 timeFormatter.string(from: task.dueDate!)
             }
             
-            // 5. 整理時間分組並依時間排序
             let timeGroups = timeDictionary.map { timeKey, tasksInTime in
+                // 依時間排序
                 TimeGroup(timeString: timeKey, tasks: tasksInTime.sorted(by: { $0.dueDate! < $1.dueDate! }))
             }.sorted { $0.timeString < $1.timeString }
             
             return DateGroup(dateString: dateKey, timeGroups: timeGroups)
         }
-        .sorted { $0.dateString < $1.dateString } // 日期排序
+        .sorted { $0.dateString < $1.dateString } // 依日期字串排序
     }
     
     // MARK: - 日期格式化工具
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "M/d (E)" // 格式：6/12 (週一)
+        formatter.dateFormat = "M/d (E)"
         formatter.locale = Locale(identifier: "zh_Hant_TW")
         return formatter
     }
     
     private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm" // 格式：12:00
+        formatter.dateFormat = "HH:mm"
         return formatter
-    }
-    
-    // MARK: - 產生測試用的假資料
-    private func loadMockData() {
-        let calendar = Calendar.current
-        let today = Date()
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-        
-        let time1 = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: today)!
-        let time2 = calendar.date(bySettingHour: 14, minute: 30, second: 0, of: today)!
-        let time3 = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: tomorrow)!
-        
-        tasks = [
-            TodoTask(title: "寫簡報", status: .inProgress, dueDate: time1),
-            TodoTask(title: "健身", status: .todo, dueDate: time1),
-            TodoTask(title: "與設計師開會", status: .todo, dueDate: time2),
-            TodoTask(title: "提交專案進度", status: .todo, dueDate: time3)
-        ]
     }
 }
 
