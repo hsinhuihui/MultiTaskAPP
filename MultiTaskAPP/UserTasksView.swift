@@ -225,12 +225,19 @@ struct UserTasksView: View {
             
             // 右側：選項按鈕與狀態膠囊
             VStack(alignment: .trailing, spacing: 12) {
-                Button {
-                    // 選項按鈕點擊事件
+                Menu {
+                    Button(role: .destructive) {
+                        // 點擊後呼叫 TaskManager 刪除該任務
+                        taskManager.deleteTask(task: task)
+                    } label: {
+                        Label("刪除任務", systemImage: "trash")
+                    }
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.headline)
                         .foregroundColor(.gray.opacity(0.6))
+                        .padding(8) // 稍微增加點擊範圍，提升體驗
+                        .contentShape(Rectangle())
                 }
                 
                 Spacer(minLength: 0)
