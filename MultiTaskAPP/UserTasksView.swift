@@ -275,7 +275,7 @@ struct UserTasksView: View {
                 
                 // 根據三段狀態決定文字與顏色
                 let statusText = task.status == .done ? "已完成" : (task.status == .inProgress ? "進行中" : "待處理")
-                let statusColor: Color = task.status == .done ? .green : (task.status == .inProgress ? .blue : warmOrange)
+                let statusColor: Color = task.status == .done ? .green : (task.status == .inProgress ? warmOrange : .gray)
                 
                 Text(statusText)
                     .font(.system(size: 10, weight: .bold))
