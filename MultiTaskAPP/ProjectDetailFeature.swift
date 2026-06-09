@@ -141,7 +141,8 @@ class ProjectDetailViewModel: ObservableObject {
         ])
     }
 
-    func addTask(projectId: String, title: String, assignee: String,
+    // 💡 1. 參數新增 projectName
+    func addTask(projectId: String, projectName: String, title: String, assignee: String,
                  deadline: Date, status: TaskStatus = .todo) {
         let taskId = UUID().uuidString
         let data: [String: Any] = [
@@ -151,7 +152,8 @@ class ProjectDetailViewModel: ObservableObject {
             "assignee":    assignee.isEmpty ? "未分配" : assignee,
             "deadline":    Timestamp(date: deadline),
             "isCompleted": status == .done,
-            "status":      status.rawValue
+            "status":      status.rawValue,
+            "projectName": projectName // 💡 2. 使用傳進來的 projectName
         ]
         db.collection("project_tasks").document(taskId).setData(data)
     }
@@ -262,7 +264,7 @@ struct ProjectDetailFeatureView: View {
             // ── 頂部專案總進度卡片 ──
             Section {
                 ProjectProgressView(tasks: viewModel.tasks)
-                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
                     .listRowBackground(Color.clear)
             }
             .listRowSeparator(.hidden)
@@ -347,6 +349,7 @@ struct ProjectDetailFeatureView: View {
         }
         .sheet(isPresented: $showingAddTask) {
             ProjectAddTaskSheet(projectId: project.id ?? "",
+                                projectName: project.title,
                                 members: viewModel.projectMembers,
                                 viewModel: viewModel)
         }
@@ -479,6 +482,7 @@ struct ProjectDetailFeatureView: View {
 struct ProjectAddTaskSheet: View {
     @Environment(\.presentationMode) var presentationMode
     var projectId: String
+    var projectName: String
     var members: [String]
     @ObservedObject var viewModel: ProjectDetailViewModel
 
@@ -530,7 +534,7 @@ struct ProjectAddTaskSheet: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("發佈") {
-                        viewModel.addTask(projectId: projectId, title: title,
+                        viewModel.addTask(projectId: projectId, projectName: projectName, title: title,
                                           assignee: assignee, deadline: deadline, status: status)
                         presentationMode.wrappedValue.dismiss()
                     }

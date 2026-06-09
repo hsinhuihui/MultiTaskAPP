@@ -55,6 +55,34 @@ class TaskManager {
             }
     }
     
+    /// 更新任務的狀態，並同步寫入 Firebase
+    func updateTaskStatus(task: TodoTask, newStatus: TaskStatus, previousStatus: TaskStatus? = nil) {
+        let db = Firestore.firestore()
+        
+        // 💡 這裡的安全機制：當狀態是 .done 時，isCompleted 同步寫入 true，其餘寫入 false
+        // 這樣可以確保 App 裡其他還在使用 isCompleted 的舊功能不會壞掉！
+        let isCompletedValue = (newStatus == .done)
+        
+        // 準備要更新的資料字典
+        var updateData: [String: Any] = [
+            "status": newStatus.rawValue,
+            "isCompleted": isCompletedValue
+        ]
+        
+        // 💡 如果有傳入「前一次的狀態」，就一併寫入 Firebase 記憶起來
+        if let previous = previousStatus {
+            updateData["previousStatus"] = previous.rawValue
+        }
+        
+        db.collection("project_tasks").document(task.id).updateData(updateData) { error in
+            if let error = error {
+                print("❌ 更改任務狀態失敗: \(error.localizedDescription)")
+            } else {
+                print("✅ 任務狀態已成功更新為: \(newStatus.rawValue)")
+            }
+        }
+    }
+    
     // 💡 刪除指定的個人任務
     func deleteTask(task: TodoTask) {
         db.collection("project_tasks").document(task.id).delete { error in
@@ -64,14 +92,6 @@ class TaskManager {
                 print("🗑️ 任務已成功刪除")
             }
         }
-    }
-    
-    // 💡 配合資料模型更新：改為切換 isCompleted 布林值
-    func toggleTaskStatus(task: TodoTask) {
-        let newStatus = !task.isCompleted
-        db.collection("project_tasks").document(task.id).updateData([
-            "isCompleted": newStatus
-        ])
     }
     
     deinit {

@@ -15,7 +15,7 @@ struct ProjectProgressView: View {
     }
     
     private var completedTasksCount: Int {
-        tasks.filter { $0.isCompleted }.count
+        tasks.filter { $0.status == .done }.count
     }
     
     private var completionRate: Double {

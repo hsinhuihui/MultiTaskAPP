@@ -10,6 +10,8 @@ struct TodoTask: Identifiable, Codable {
     var assignee: String?    // 💡 Firebase 裡叫 assignee (存的是 Email)
     var projectId: String?
     var projectName: String? // Firebase 裡面目前沒有這個，如果沒資料它就會是 nil
+    var status: TaskStatus?
+    var previousStatus: TaskStatus?
     
     // 💡 翻譯蒟蒻：將 Swift 變數對應到 Firebase 的真實欄位
     enum CodingKeys: String, CodingKey {
@@ -20,5 +22,7 @@ struct TodoTask: Identifiable, Codable {
         case assignee             // 完全對應
         case projectId
         case projectName
+        case status
+        case previousStatus
     }
 }

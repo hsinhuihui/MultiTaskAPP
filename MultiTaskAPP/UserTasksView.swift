@@ -18,7 +18,7 @@ struct UserTasksView: View {
     }
     
     private var completedTasksCount: Int {
-        taskManager.tasks.filter { $0.isCompleted }.count
+        taskManager.tasks.filter { $0.status == .done }.count
     }
     
     private var completionRate: Double {
@@ -125,7 +125,7 @@ struct UserTasksView: View {
     private func dateSection(for dateGroup: DateGroup) -> some View {
         let isCollapsed = collapsedDates.contains(dateGroup.date)
         let groupTotal = dateGroup.tasks.count
-        let groupCompleted = dateGroup.tasks.filter { $0.isCompleted }.count
+        let groupCompleted = dateGroup.tasks.filter { $0.status == .done }.count
         
         VStack(alignment: .leading, spacing: 12) {
             // 標題列
@@ -182,18 +182,26 @@ struct UserTasksView: View {
     @ViewBuilder
     private func taskCard(for task: TodoTask) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            // 左側：時間與狀態圓圈
+            // 左側：時間與狀態圓圈（一鍵快速完成與智慧退回）
             VStack(spacing: 8) {
                 Text(task.dueDate != nil ? timeFormatter.string(from: task.dueDate!) : "--:--")
                     .font(.caption2.bold())
                     .foregroundColor(.gray)
                 
                 Button {
-                    taskManager.toggleTaskStatus(task: task)
+                    // 💡 智慧判斷邏輯：
+                    if task.status == .done {
+                        // 1. 如果目前是已完成，要退回前一個狀態 (如果沒有紀錄，預設退回 .todo)
+                        let revertStatus = task.previousStatus ?? .todo
+                        taskManager.updateTaskStatus(task: task, newStatus: revertStatus)
+                    } else {
+                        // 2. 如果目前不是已完成，要變成已完成，同時「把現在的狀態存進 previousStatus」
+                        taskManager.updateTaskStatus(task: task, newStatus: .done, previousStatus: task.status)
+                    }
                 } label: {
-                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: task.status == .done ? "checkmark.circle.fill" : "circle")
                         .font(.title2)
-                        .foregroundColor(task.isCompleted ? .green : warmOrange)
+                        .foregroundColor(task.status == .done ? .green : warmOrange)
                 }
                 .buttonStyle(.plain)
             }
@@ -203,8 +211,8 @@ struct UserTasksView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(task.title)
                     .font(.body.weight(.semibold))
-                    .foregroundColor(task.isCompleted ? .gray : .primary)
-                    .strikethrough(task.isCompleted, color: .gray)
+                    .foregroundColor(task.status == .done ? .gray : .primary)
+                    .strikethrough(task.status == .done, color: .gray)
                 
                 if let projectName = task.projectName {
                     HStack(spacing: 4) {
@@ -226,8 +234,31 @@ struct UserTasksView: View {
             // 右側：選項按鈕與狀態膠囊
             VStack(alignment: .trailing, spacing: 12) {
                 Menu {
+                    // 💡 新增：細分狀態調整選單
+                    Section(header: Text("變更任務狀態")) {
+                        Button {
+                            taskManager.updateTaskStatus(task: task, newStatus: .todo)
+                        } label: {
+                            Label("待處理", systemImage: task.status == .todo ? "checkmark" : "")
+                        }
+                        
+                        Button {
+                            taskManager.updateTaskStatus(task: task, newStatus: .inProgress)
+                        } label: {
+                            Label("進行中", systemImage: task.status == .inProgress ? "checkmark" : "")
+                        }
+                        
+                        Button {
+                            taskManager.updateTaskStatus(task: task, newStatus: .done)
+                        } label: {
+                            Label("已完成", systemImage: task.status == .done ? "checkmark" : "")
+                        }
+                    }
+                    
+                    Divider() // 分隔線
+                    
+                    // 原有的刪除按鈕
                     Button(role: .destructive) {
-                        // 點擊後呼叫 TaskManager 刪除該任務
                         taskManager.deleteTask(task: task)
                     } label: {
                         Label("刪除任務", systemImage: "trash")
@@ -236,18 +267,22 @@ struct UserTasksView: View {
                     Image(systemName: "ellipsis")
                         .font(.headline)
                         .foregroundColor(.gray.opacity(0.6))
-                        .padding(8) // 稍微增加點擊範圍，提升體驗
+                        .padding(8)
                         .contentShape(Rectangle())
                 }
                 
                 Spacer(minLength: 0)
                 
-                Text(task.isCompleted ? "已完成" : "未完成")
+                // 根據三段狀態決定文字與顏色
+                let statusText = task.status == .done ? "已完成" : (task.status == .inProgress ? "進行中" : "待處理")
+                let statusColor: Color = task.status == .done ? .green : (task.status == .inProgress ? .blue : warmOrange)
+                
+                Text(statusText)
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(task.isCompleted ? Color.green.opacity(0.12) : warmOrange.opacity(0.12))
-                    .foregroundColor(task.isCompleted ? .green : warmOrange)
+                    .background(statusColor.opacity(0.12))
+                    .foregroundColor(statusColor)
                     .cornerRadius(6)
             }
         }
