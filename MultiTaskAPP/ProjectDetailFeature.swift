@@ -23,12 +23,25 @@ class ProjectDetailViewModel: ObservableObject {
     @Published var memberNames: [String: String] = [:] // 🌟 ["UID": "真實名字"]
 
     private var db = Firestore.firestore()
+    
+    // 🌟 安全修正一：宣告監聽器變數，以便在離開視圖時徹底註銷
+    private var projectListener: ListenerRegistration?
+    private var tasksListener: ListenerRegistration?
 
-    // 🌟 反查真實姓名
+    // 🌟 安全修正二：實作解構子 (deinit)
+    // 當使用者「返回大廳」或離開此專案時，ViewModel 被釋放，這裡會主動登出雲端監聽，避免背景線程持續運作導致卡死！
+    deinit {
+        projectListener?.remove()
+        tasksListener?.remove()
+        print("🗑️ 記憶體安全釋放：ProjectDetailViewModel 順利銷毀，Firebase 監聽器已成功登出。")
+    }
+
+    // 🌟 安全修正三：在所有非同步閉包中使用 [weak self] 防止強引用循環
     func fetchMemberNames(uids: [String]) {
         for uid in uids {
             guard self.memberNames[uid] == nil else { continue }
-            db.collection("users").document(uid).getDocument { doc, _ in
+            db.collection("users").document(uid).getDocument { [weak self] doc, _ in
+                guard let self = self else { return }
                 if let data = doc?.data(), let name = data["displayName"] as? String {
                     DispatchQueue.main.async { self.memberNames[uid] = name }
                 } else if let data = doc?.data(), let email = data["email"] as? String {
@@ -39,25 +52,48 @@ class ProjectDetailViewModel: ObservableObject {
     }
 
     func fetchProjectDetails(projectId: String) {
-        db.collection("projects").document(projectId).addSnapshotListener { snap, _ in
-            if let data = snap?.data() {
-                if let ts = data["deadline"] as? Timestamp {
-                    self.projectDeadline = ts.dateValue()
+        // 進入前先清理可能殘留的舊監聽器
+        projectListener?.remove()
+        
+        projectListener = db.collection("projects").document(projectId)
+            .addSnapshotListener { [weak self] snap, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    print("❌ 監聽專案詳情出錯: \(error.localizedDescription)")
+                    return
                 }
-                if let members = data["members"] as? [String] {
-                    self.projectMembers = members
-                    self.fetchMemberNames(uids: members)
+                
+                if let data = snap?.data() {
+                    DispatchQueue.main.async {
+                        if let ts = data["deadline"] as? Timestamp {
+                            self.projectDeadline = ts.dateValue()
+                        }
+                        if let members = data["members"] as? [String] {
+                            self.projectMembers = members
+                            self.fetchMemberNames(uids: members)
+                        }
+                    }
                 }
             }
-        }
     }
 
     func fetchTasks(projectId: String) {
-        db.collection("project_tasks")
+        // 進入前先清理可能殘留的舊監聽器
+        tasksListener?.remove()
+        
+        tasksListener = db.collection("project_tasks")
             .whereField("projectId", isEqualTo: projectId)
-            .addSnapshotListener { snap, _ in
+            .addSnapshotListener { [weak self] snap, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    print("❌ 監聽任務出錯: \(error.localizedDescription)")
+                    return
+                }
+                
                 guard let docs = snap?.documents else { return }
-                self.tasks = docs.compactMap { doc -> ProjectDetailTask? in
+                let parsedTasks = docs.compactMap { doc -> ProjectDetailTask? in
                     let data = doc.data()
                     guard let projId   = data["projectId"] as? String,
                           let title    = data["title"] as? String,
@@ -85,7 +121,11 @@ class ProjectDetailViewModel: ObservableObject {
                         status: status
                     )
                 }
-                self.updateProjectProgressInFirestore(projectId: projectId)
+                
+                DispatchQueue.main.async {
+                    self.tasks = parsedTasks
+                    self.updateProjectProgressInFirestore(projectId: projectId)
+                }
             }
     }
 
@@ -140,8 +180,46 @@ class ProjectDetailViewModel: ObservableObject {
         db.collection("project_tasks").document(taskId).delete()
     }
 
+    // 🌟 修正：支援級聯刪除 (Cascade Delete) 的刪除專案功能
     func deleteProject(projectId: String, completion: @escaping (Bool) -> Void) {
-        db.collection("projects").document(projectId).delete { err in completion(err == nil) }
+        // 第一步：先找出專案底下所有相關的任務
+        db.collection("project_tasks")
+            .whereField("projectId", isEqualTo: projectId)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                
+                if let error = error {
+                    print("❌ 獲取專案關聯任務失敗: \(error.localizedDescription)")
+                    completion(false)
+                    return
+                }
+                
+                // 建立 Firestore 批次操作 (Batch)
+                let batch = self.db.batch()
+                
+                // 1. 將撈出來的所有專案任務加入批次刪除佇列
+                if let documents = snapshot?.documents {
+                    for doc in documents {
+                        batch.deleteDocument(doc.reference)
+                    }
+                    print("🧹 已將 \(documents.count) 個關聯任務加入刪除佇列")
+                }
+                
+                // 2. 將專案本體文件加入批次刪除佇列
+                let projectRef = self.db.collection("projects").document(projectId)
+                batch.deleteDocument(projectRef)
+                
+                // 3. 一次性打包提交 (Atomic Commit)
+                batch.commit { batchError in
+                    if let batchError = batchError {
+                        print("❌ 批次級聯刪除失敗: \(batchError.localizedDescription)")
+                        completion(false)
+                    } else {
+                        print("🗑️ 專案及底下所有任務已乾淨地一併刪除！")
+                        completion(true)
+                    }
+                }
+            }
     }
 
     func leaveProject(projectId: String, completion: @escaping (Bool) -> Void) {
@@ -175,68 +253,79 @@ struct ProjectDetailFeatureView: View {
     private var inProgressTasks: [ProjectDetailTask] { viewModel.tasks.filter { $0.status == .inProgress } }
     private var doneTasks:       [ProjectDetailTask] { viewModel.tasks.filter { $0.status == .done } }
 
+    // 🎨 導入暖色調背景 (與大廳保持精緻一致的視覺感)
+    private let warmBackground = Color(red: 0.98, green: 0.97, blue: 0.95)
+
     var body: some View {
-        VStack(spacing: 16) {
-
-            // 進度條
-            ProjectProgressView(tasks: viewModel.tasks)
-                .padding(.horizontal)
-                .padding(.top, 10)
-
-            List {
-                // ── 專案資訊 ──
-                Section(header: Text("專案資訊")) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("名稱：\(project.title)").font(.title3).bold()
-
-                        HStack {
-                            Image(systemName: "calendar.badge.clock")
-                            if let dl = viewModel.projectDeadline {
-                                HStack(spacing: 0) {
-                                    Text("專案截止：")
-                                    Text(dl, style: .date)
-                                }
-                                .foregroundColor(dl < Date() ? .red : .primary)
-                            } else {
-                                Text("專案截止：尚未設定").foregroundColor(.secondary)
-                            }
-                            Spacer()
-                            Button("設定日期") { showingDatePicker.toggle() }
-                                .font(.caption).buttonStyle(.bordered)
-                        }
-
-                        if showingDatePicker {
-                            DatePicker("選擇截止日期", selection: $selectedProjectDate,
-                                       displayedComponents: [.date, .hourAndMinute])
-                                .datePickerStyle(.compact)
-                                .onChange(of: selectedProjectDate) { _, new in
-                                    viewModel.updateProjectDeadline(projectId: project.id ?? "", newDate: new)
-                                    showingDatePicker = false
-                                }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-
-                // ── 待處理 ──
-                Section(header: taskSectionHeader("待處理", count: todoTasks.count, color: .gray, showAdd: true)) {
-                    if todoTasks.isEmpty { emptyRow("沒有待處理任務") }
-                    else { ForEach(todoTasks) { taskRow($0) } }
-                }
-
-                // ── 進行中 ──
-                Section(header: taskSectionHeader("進行中", count: inProgressTasks.count, color: .orange)) {
-                    if inProgressTasks.isEmpty { emptyRow("沒有進行中任務") }
-                    else { ForEach(inProgressTasks) { taskRow($0) } }
-                }
-
-                // ── 已完成 ──
-                Section(header: taskSectionHeader("已完成", count: doneTasks.count, color: .green)) {
-                    if doneTasks.isEmpty { emptyRow("還沒有完成的任務") }
-                    else { ForEach(doneTasks) { taskRow($0) } }
-                }
+        // 🌟 核心修正：移除外部 ZStack 與對應的 ignoresSafeArea 背景，改由 List 直接處理背景，徹底防範 SwiftUI 轉場凍結！
+        List {
+            // ── 頂部專案總進度卡片 ──
+            Section {
+                ProjectProgressView(tasks: viewModel.tasks)
+                    .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                    .listRowBackground(Color.clear)
             }
+            .listRowSeparator(.hidden)
+
+            // ── 專案資訊 ──
+            Section(header: Text("專案資訊")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("名稱：\(project.title)").font(.title3).bold()
+
+                    HStack {
+                        Image(systemName: "calendar.badge.clock")
+                        if let dl = viewModel.projectDeadline {
+                            HStack(spacing: 0) {
+                                Text("專案截止：")
+                                Text(dl, style: .date)
+                            }
+                            .foregroundColor(dl < Date() ? .red : .primary)
+                        } else {
+                            Text("專案截止：尚未設定").foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button("設定日期") { showingDatePicker.toggle() }
+                            .font(.caption).buttonStyle(.bordered)
+                    }
+
+                    if showingDatePicker {
+                        DatePicker("選擇截止日期", selection: $selectedProjectDate,
+                                   displayedComponents: [.date, .hourAndMinute])
+                            .datePickerStyle(.compact)
+                            .onChange(of: selectedProjectDate) { _, new in
+                                viewModel.updateProjectDeadline(projectId: project.id ?? "", newDate: new)
+                                showingDatePicker = false
+                            }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.white)
+
+            // ── 待處理 ──
+            Section(header: taskSectionHeader("待處理", count: todoTasks.count, color: .gray, showAdd: true)) {
+                if todoTasks.isEmpty { emptyRow("沒有待處理任務") }
+                else { ForEach(todoTasks) { taskRow($0) } }
+            }
+            .listRowBackground(Color.white)
+
+            // ── 進行中 ──
+            Section(header: taskSectionHeader("進行中", count: inProgressTasks.count, color: .orange)) {
+                if inProgressTasks.isEmpty { emptyRow("沒有進行中任務") }
+                else { ForEach(inProgressTasks) { taskRow($0) } }
+            }
+            .listRowBackground(Color.white)
+
+            // ── 已完成 ──
+            Section(header: taskSectionHeader("已完成", count: doneTasks.count, color: .green)) {
+                if doneTasks.isEmpty { emptyRow("還沒有完成的任務") }
+                else { ForEach(doneTasks) { taskRow($0) } }
+            }
+            .listRowBackground(Color.white)
         }
+        .listStyle(.insetGrouped) // 使用內嵌群組樣式，視覺效果最乾淨
+        .scrollContentBackground(.hidden) // 隱藏 iOS 16+ 預設的灰色 List 背景
+        .background(warmBackground) // 🌟 直接在 List 套用背景，系統會自動流暢填充整塊安全區域，不衝突手勢！
         .navigationTitle("專案詳情")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
