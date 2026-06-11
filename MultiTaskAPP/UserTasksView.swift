@@ -4,6 +4,9 @@ import SwiftUI
 struct UserTasksView: View {
     @State private var taskManager = TaskManager()
     
+    // 🌟 新增這裡：控制通知中心彈窗顯示的布林值
+    @State private var showNotificationCenter = false
+    
     // 用來記錄目前「被收起」的日期群組
     @State private var collapsedDates: Set<Date> = []
     
@@ -51,6 +54,27 @@ struct UserTasksView: View {
                 }
             }
             .navigationTitle("我的任務")
+            .navigationBarTitleDisplayMode(.inline)
+            
+            // 🌟 新增這裡：在導覽列右側塞入一個精緻的鈴鐺按鈕
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        showNotificationCenter = true // 點擊時將布林值設為 true
+                    }) {
+                        Image(systemName: "bell.fill")
+                            .font(.body)
+                            .fontWeight(.semibold)
+                            // 按鈕會亮起你的愛馬仕暖橘色主題色
+                    }
+                }
+            }
+            
+            // 🌟 新增這裡：當 showNotificationCenter 為 true 時，由下而上滑出通知中心
+            .sheet(isPresented: $showNotificationCenter) {
+                NotificationCenterView()
+            }
+            
             .onAppear {
                 taskManager.listenToUserTasks()
             }

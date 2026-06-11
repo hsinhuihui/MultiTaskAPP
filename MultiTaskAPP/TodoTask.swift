@@ -2,7 +2,7 @@
 import Foundation
 
 // 任務資料模型
-struct TodoTask: Identifiable, Codable {
+struct TodoTask: Identifiable, Codable, Equatable {
     var id: String           // 💡 Firebase 裡已經有 id 欄位，且為字串
     var title: String
     var isCompleted: Bool    // 💡 Firebase 裡用的是 isCompleted (布林值)

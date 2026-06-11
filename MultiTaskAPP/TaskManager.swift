@@ -1,4 +1,7 @@
+//
 // TaskManager.swift
+//
+
 import SwiftUI
 import Foundation
 import FirebaseFirestore
@@ -52,6 +55,35 @@ class TaskManager {
                         return nil
                     }
                 }
+                
+                // 🌟 新增這裡：資料讀取並轉換完成後，為每個任務設定本地通知
+                print("====================================")
+                print("📡 Firebase 監聽觸發！總共抓到 \(self.tasks.count) 個任務")
+                
+                for task in self.tasks {
+                    print("👉 正在檢查任務：【\(task.title)】")
+                    print("   - 目前狀態：\(String(describing: task.status))")
+                    print("   - 截止時間：\(String(describing: task.dueDate))")
+                    
+                    // 💡 加上詳細的防呆檢查
+                    if task.status == .done {
+                        print("   ⏭️ 跳過排程：因為任務已經完成了")
+                        continue
+                    }
+                    
+                    guard let taskDate = task.dueDate else {
+                        print("   ❌ 跳過排程：抓不到截止時間 (dueDate 是 nil)！")
+                        continue
+                    }
+                    
+                    // 如果狀態不是 done，且有時間，就會執行到這裡
+                    NotificationManager.shared.scheduleDeadlineNotification(
+                        taskTitle: task.title,
+                        deadline: taskDate,
+                        taskId: task.id
+                    )
+                }
+                print("====================================")
             }
     }
     
