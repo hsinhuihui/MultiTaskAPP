@@ -144,18 +144,31 @@ class ProjectDetailViewModel: ObservableObject {
     // 💡 1. 參數新增 projectName
     func addTask(projectId: String, projectName: String, title: String, assignee: String,
                  deadline: Date, status: TaskStatus = .todo) {
+        // 🌟 獲取當前使用者的 UID，如果沒有登入則不執行
+        guard let uid = Auth.auth().currentUser?.uid else {
+            print("❌ 無法新增任務：未找到登入使用者")
+            return
+        }
+    
         let taskId = UUID().uuidString
         let data: [String: Any] = [
             "id":          taskId,
             "projectId":   projectId,
             "title":       title,
             "assignee":    assignee.isEmpty ? "未分配" : assignee,
+            "assigneeId":   uid, // 🌟 關鍵修正：寫入 UID，確保日後查詢穩定
             "deadline":    Timestamp(date: deadline),
             "isCompleted": status == .done,
             "status":      status.rawValue,
             "projectName": projectName // 💡 2. 使用傳進來的 projectName
         ]
-        db.collection("project_tasks").document(taskId).setData(data)
+        db.collection("project_tasks").document(taskId).setData(data) { error in
+            if let error = error {
+                print("❌ 新增任務失敗: \(error.localizedDescription)")
+            } else {
+                print("✅ 成功新增任務，並綁定 UID: \(uid)")
+            }
+        }
     }
 
     func updateTask(taskId: String, title: String, assignee: String,

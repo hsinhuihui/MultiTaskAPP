@@ -35,11 +35,16 @@ class TaskManager {
         
         let currentUserEmail = user.email ?? ""
         let currentUserName = user.displayName ?? "" // 🌟
+        let currentUID = user.uid
         
         listenerRegistration?.remove()
         
+        // 💡 改用 OR 邏輯：檢查 assigneeId (新規則) 或 assignee (舊資料相容)
+        // 注意：Firebase 組合查詢需要建立索引，如果這裡報錯，請點擊 Xcode 錯誤訊息中的連結即可自動建立
         listenerRegistration = db.collection("project_tasks")
-            .whereField("assignee", in: [currentUserEmail, currentUserName])
+            .whereFilter(Filter.orFilter([
+                Filter.whereField("assigneeId", isEqualTo: currentUID),
+            ]))
             .addSnapshotListener { querySnapshot, error in
                 if let error = error {
                     print("讀取任務錯誤: \(error.localizedDescription)")
@@ -47,13 +52,19 @@ class TaskManager {
                 }
                 guard let documents = querySnapshot?.documents else { return }
                 
-                self.tasks = documents.compactMap { doc -> TodoTask? in
-                    do {
-                        return try doc.data(as: TodoTask.self)
-                    } catch {
-                        print("❌ 解析任務失敗: \(error)")
-                        return nil
+                // 收到資料後，進行「升級」動作
+                self.tasks = documents.compactMap { doc in
+                    var task = try? doc.data(as: TodoTask.self)
+                    
+                    // 💡 修改處：確認 assign 的名字或 Email 確實屬於當前使用者，才寫入 UID
+                    if task != nil && (task?.assigneeId == nil || task?.assigneeId == "") {
+                        // 假設你的任務原本有存 assignee 名字或 Email
+                        if task?.assignee == user.displayName || task?.assignee == user.email {
+                            self.upgradeTaskAssigneeId(taskId: doc.documentID, newUid: currentUID)
+                        }
                     }
+                    
+                    return task
                 }
                 
                 // 🌟 新增這裡：資料讀取並轉換完成後，為每個任務設定本地通知
@@ -126,6 +137,15 @@ class TaskManager {
                 // 這裡假設你已經有一個更新通知的方法
                 self.rescheduleNotification(for: task, newOffset: offset)
             }
+        }
+    }
+    
+    // 💡 自動升級函數：在背景將舊任務補上 UID
+    private func upgradeTaskAssigneeId(taskId: String, newUid: String) {
+        db.collection("project_tasks").document(taskId).updateData([
+            "assigneeId": newUid
+        ]) { error in
+            if error == nil { print("✅ 任務 \(taskId) 已自動升級並綁定 UID") }
         }
     }
 

@@ -8,6 +8,7 @@ struct TodoTask: Identifiable, Codable, Equatable {
     var isCompleted: Bool    // 💡 Firebase 裡用的是 isCompleted (布林值)
     var dueDate: Date?       // 留在 Swift 裡叫 dueDate 比較直覺
     var assignee: String?    // 💡 Firebase 裡叫 assignee (存的是 Email)
+    var assigneeId: String? // 🌟 關鍵：用來過濾任務的 UID
     var projectId: String?
     var projectName: String? // Firebase 裡面目前沒有這個，如果沒資料它就會是 nil
     var status: TaskStatus?
@@ -21,6 +22,7 @@ struct TodoTask: Identifiable, Codable, Equatable {
         case isCompleted          // 完全對應
         case dueDate = "deadline" // 🌟 告訴 Swift：Firebase 裡的名稱叫 deadline
         case assignee             // 完全對應
+        case assigneeId
         case projectId
         case projectName
         case status
