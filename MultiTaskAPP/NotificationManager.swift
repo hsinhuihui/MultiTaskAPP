@@ -36,7 +36,7 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func scheduleDeadlineNotification(taskTitle: String, deadline: Date, taskId: String) {
         let content = UNMutableNotificationContent()
         content.title = "任務即將到期提醒 ⏰"
-        content.body = "你的任務「\(taskTitle)」即將在稍後截止，請盡快完成！"
+        content.body = "你的任務「\(taskTitle)」即將截止，請盡快完成！"
         content.sound = .default
         
         // 為了測試方便，提前 1 分鐘
@@ -68,13 +68,13 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func scheduleDailySummaryNotification(remainingTasksCount: Int, hour: Int, minute: Int) {
         // 如果今天完全沒有未完成任務，就不吵使用者
         guard remainingTasksCount > 0 else {
-            print("⏭️ 因為沒有未完成任務，取消今日晨報排程。")
+            print("⏭️ 因為沒有未完成任務，取消每日通知排程。")
             return
         }
         
         let content = UNMutableNotificationContent()
-        content.title = "☀️ 效率晨報：今天又是充滿戰力的一天！"
-        content.body = "早安！你今天還有 \(remainingTasksCount) 個任務等著你完成，點擊進入專案大廳開啟高效的一天吧！"
+        content.title = "☀️ 每日通知：今天又是執行任務的一天！"
+        content.body = "早安！今天還有 \(remainingTasksCount) 個任務等著你完成，請盡快執行！"
         content.sound = .default
         
         // 🌟 修改：設定為使用者自訂的時間觸發
@@ -92,9 +92,9 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ 設定每日早報失敗: \(error.localizedDescription)")
+                print("❌ 設定每日通知失敗: \(error.localizedDescription)")
             } else {
-                print("✅ 成功設定每日早報！將在每天 \(String(format: "%02d:%02d", hour, minute)) 提醒")
+                print("✅ 成功設定每日通知！將在每天 \(String(format: "%02d:%02d", hour, minute)) 提醒")
             }
         }
     }

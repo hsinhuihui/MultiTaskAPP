@@ -39,7 +39,7 @@ struct NotificationCenterView: View {
                                 .foregroundColor(themeOrange)
                                 .font(.title3)
                             
-                            Text("每日效率晨報時間")
+                            Text("每日通知時間")
                                 .font(.subheadline)
                                 .fontWeight(.bold)
                             
@@ -55,7 +55,7 @@ struct NotificationCenterView: View {
                                 }
                         }
                         
-                        Text("系統將在每天此時間檢查未完成任務，並對您發送進度摘要。")
+                        Text("將在每天此時間檢查未完成任務，並對您發送進度通知。")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)

@@ -238,18 +238,28 @@ struct UserTasksView: View {
                     .foregroundColor(task.status == .done ? .gray : .primary)
                     .strikethrough(task.status == .done, color: .gray)
                 
-                if let projectName = task.projectName {
-                    HStack(spacing: 4) {
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 10))
-                        Text(projectName)
-                            .font(.system(size: 11, weight: .bold))
+                if let projectName = task.projectName, let projectId = task.projectId {
+                    // 🌟 確保這裡傳入的參數與 Project 定義吻合
+                    NavigationLink(destination: ProjectDetailFeatureView(project: Project(
+                        id: projectId,
+                        title: projectName,
+                        ownerId: "",      // 因為僅是用於跳轉與監聽，此處暫填空字串通常沒問題
+                        members: [],      // 同上，監聽器會自動補齊資料
+                        inviteCode: ""
+                    ))) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "folder.fill")
+                                .font(.system(size: 10))
+                            Text(projectName)
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundColor(warmOrange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(lightWarmOrange)
+                        .cornerRadius(6)
                     }
-                    .foregroundColor(warmOrange)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(lightWarmOrange)
-                    .cornerRadius(6)
+                    .buttonStyle(.plain)
                 }
             }
             
