@@ -12,6 +12,7 @@ struct TodoTask: Identifiable, Codable, Equatable {
     var projectName: String? // Firebase 裡面目前沒有這個，如果沒資料它就會是 nil
     var status: TaskStatus?
     var previousStatus: TaskStatus?
+    var reminderOffset: TimeInterval? // 新增：提醒偏移量 (例如：3600 秒代表 1 小時前)
     
     // 💡 翻譯蒟蒻：將 Swift 變數對應到 Firebase 的真實欄位
     enum CodingKeys: String, CodingKey {
@@ -24,5 +25,6 @@ struct TodoTask: Identifiable, Codable, Equatable {
         case projectName
         case status
         case previousStatus
+        case reminderOffset
     }
 }

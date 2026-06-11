@@ -115,6 +115,38 @@ class TaskManager {
         }
     }
     
+    // 更新提醒時間，並觸發通知重新排程
+    func updateReminder(task: TodoTask, offset: TimeInterval?) {
+        let db = Firestore.firestore()
+        db.collection("project_tasks").document(task.id).updateData([
+            "reminderOffset": offset as Any
+        ]) { error in
+            if error == nil {
+                // 更新 Firebase 成功後，重新排程通知
+                // 這裡假設你已經有一個更新通知的方法
+                self.rescheduleNotification(for: task, newOffset: offset)
+            }
+        }
+    }
+
+    private func rescheduleNotification(for task: TodoTask, newOffset: TimeInterval?) {
+        // 移除舊通知
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [task.id])
+        
+        let offset = newOffset ?? 600 // 預設 10 分鐘 (600秒)
+        
+        // 如果有設定偏移量且截止時間存在，則重新排程
+        if let offset = newOffset, let dueDate = task.dueDate {
+            NotificationManager.shared.scheduleDeadlineNotification(
+                taskTitle: task.title,
+                deadline: dueDate, // 傳入原始截止日期
+                taskId: task.id,
+                offsetInSeconds: offset // 傳入秒數
+            )
+            print("✅ 成功重新排程通知：\(task.title)，提前量：\(offset)秒")
+        }
+    }
+    
     // 💡 刪除指定的個人任務
     func deleteTask(task: TodoTask) {
         db.collection("project_tasks").document(task.id).delete { error in

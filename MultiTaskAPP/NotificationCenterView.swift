@@ -49,7 +49,7 @@ struct NotificationCenterView: View {
                             DatePicker("", selection: $selectedTime, displayedComponents: .hourAndMinute)
                                 .labelsHidden()
                                 .datePickerStyle(.compact)
-                            // 🌟 當使用者撥動時間時，立刻儲存並重新設定鬧鐘！
+                                // 🌟 當使用者撥動時間時，立刻儲存並重新設定鬧鐘！
                                 .onChange(of: selectedTime) { newTime in
                                     updateAndRescheduleNotification(with: newTime)
                                 }

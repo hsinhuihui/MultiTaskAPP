@@ -18,6 +18,29 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().delegate = self
     }
     
+    // 新增：根據偏移量排程通知
+    func scheduleReminder(for task: TodoTask) {
+        guard let dueDate = task.dueDate else { return }
+        
+        // 如果使用者沒設提醒，預設提前 10 分鐘，或依照你的需求
+        let offset = task.reminderOffset ?? 600
+        let triggerDate = dueDate.addingTimeInterval(-offset)
+        
+        // 確保提醒時間在未來
+        guard triggerDate > Date() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "任務即將截止"
+        content.body = "任務「\(task.title)」將在 \(offset / 60) 分鐘後截止"
+        content.sound = .default
+
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: task.id, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request)
+    }
+    
     // MARK: - 要求推播權限
     func requestAuthorization() {
         let options: UNAuthorizationOptions = [.alert, .sound, .badge]
@@ -33,15 +56,18 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
     
     // MARK: - 設定任務截止日期的本地通知
-    func scheduleDeadlineNotification(taskTitle: String, deadline: Date, taskId: String) {
+    func scheduleDeadlineNotification(taskTitle: String, deadline: Date, taskId: String, offsetInSeconds: TimeInterval = 600) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [taskId])
+        
         let content = UNMutableNotificationContent()
         content.title = "任務即將到期提醒 ⏰"
         content.body = "你的任務「\(taskTitle)」即將截止，請盡快完成！"
         content.sound = .default
         
-        // 為了測試方便，提前 1 分鐘
-        let triggerDate = Calendar.current.date(byAdding: .minute, value: -1, to: deadline) ?? deadline
+        // 將秒數轉換為分鐘做計算，或直接使用 addingTimeInterval
+        let triggerDate = deadline.addingTimeInterval(-offsetInSeconds)
         
+        print("DEBUG: 截止時間: \(deadline), 預計觸發時間: \(triggerDate), 現在時間: \(Date())")
         guard triggerDate > Date() else {
             // 💡 加上 print 讓我們知道是不是因為時間已經過去而被擋下
             print("⚠️ 任務「\(taskTitle)」的通知時間 (\(triggerDate)) 已經過去，不設定推播")

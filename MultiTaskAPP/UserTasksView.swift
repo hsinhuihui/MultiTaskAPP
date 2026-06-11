@@ -268,6 +268,16 @@ struct UserTasksView: View {
             // 右側：選項按鈕與狀態膠囊
             VStack(alignment: .trailing, spacing: 12) {
                 Menu {
+                    // 在 taskCard 的 Menu 內
+                    Section(header: Text("提醒設定")) {
+                        Button("不提醒") { taskManager.updateReminder(task: task, offset: nil) }
+                        Button("10 分鐘前") { taskManager.updateReminder(task: task, offset: 600) }
+                        Button("1 小時前") { taskManager.updateReminder(task: task, offset: 3600) }
+                        Button("1 天前") { taskManager.updateReminder(task: task, offset: 86400) }
+                    }
+                    
+                    Divider()
+                    
                     // 💡 新增：細分狀態調整選單
                     Section(header: Text("變更任務狀態")) {
                         Button {
