@@ -107,36 +107,54 @@ class ProjectManager {
         }
     }
     
-    // ✏️ 更改使用者暱稱 (🌟 已完美修復同步上傳至資料庫的 Bug！)
     func updateDisplayName(newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         guard let currentUser = Auth.auth().currentUser else { return }
-        let changeRequest = currentUser.createProfileChangeRequest()
-        changeRequest.displayName = newName
+        let uid = currentUser.uid
+        let db = Firestore.firestore()
         
-        changeRequest.commitChanges { error in
+        // 1. 同步執行 Firestore 的更新 (users 文件 + 級聯更新任務名稱)
+        let userRef = db.collection("users").document(uid)
+        
+        // 將兩個操作合併在一起處理
+        let batch = db.batch()
+        
+        // A. 更新使用者暱稱
+        batch.setData(["displayName": newName, "email": currentUser.email ?? ""], forDocument: userRef, merge: true)
+        
+        // B. 級聯更新：找到該使用者負責的所有任務，並更新 assignee 欄位
+        // 注意：這需要事先讀取任務，我們改成先把查詢放在前面
+        db.collection("project_tasks").whereField("assigneeId", isEqualTo: uid).getDocuments { snapshot, error in
             if let error = error {
-                DispatchQueue.main.async { completion(.failure(error)) }
+                completion(.failure(error))
                 return
             }
             
-            // 🌟 核心修正點：當 Auth 帳戶更改成功時，同步將「displayName」欄位寫進 Firestore 的 users 文件中！
-            // 使用 merge: true 可以保證「絕對不覆蓋」組員原先已經上傳好的 base64 大頭貼資料
-            Firestore.firestore().collection("users").document(currentUser.uid).setData([
-                "displayName": newName,
-                "email": currentUser.email ?? ""
-            ], merge: true) { fsError in
-                DispatchQueue.main.async {
-                    if let fsError = fsError {
-                        completion(.failure(fsError))
+            for doc in snapshot?.documents ?? [] {
+                batch.updateData(["assignee": newName], forDocument: doc.reference)
+            }
+            
+            // 2. 提交 Batch
+            batch.commit { batchError in
+                if let batchError = batchError {
+                    completion(.failure(batchError))
+                    return
+                }
+                
+                // 3. 最後才提交 Auth 的變更
+                let changeRequest = currentUser.createProfileChangeRequest()
+                changeRequest.displayName = newName
+                changeRequest.commitChanges { authError in
+                    if let authError = authError {
+                        completion(.failure(authError))
                     } else {
-                        print("🎉 暱稱成功同步至 Firestore 雲端資料庫：\(newName)")
+                        print("🎉 暱稱成功同步至雲端與 Auth 設定檔")
                         completion(.success(()))
                     }
                 }
             }
         }
     }
-
+    
     // 🛑 登出功能
     func signOut(completion: @escaping (Bool) -> Void) {
         do {

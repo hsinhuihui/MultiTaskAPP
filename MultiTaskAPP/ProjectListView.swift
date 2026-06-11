@@ -362,7 +362,13 @@ struct ProjectListView: View {
                         Button(action: {
                             if !inputName.isEmpty {
                                 projectManager.updateDisplayName(newName: inputName) { result in
-                                    if case .success = result { self.userName = inputName; self.isEditingName = false; triggerToast(message: "✅ 暱稱已修改！") }
+                                    if case .success = result {
+                                        self.userName = inputName
+                                        self.isEditingName = false
+                                        triggerToast(message: "✅ 暱稱與所有任務名稱已同步更新！")
+                                    } else if case .failure(let err) = result {
+                                        triggerToast(message: "❌ 更新失敗: \(err.localizedDescription)")
+                                    }
                                 }
                             }
                         }) { Text("儲存").font(.subheadline).bold().foregroundColor(.white).padding(.vertical, 8).padding(.horizontal, 12).background(Color.blue).cornerRadius(8) }

@@ -10,6 +10,7 @@ struct ProjectDetailTask: Identifiable, Codable {
     var projectId: String
     var title: String
     var assignee: String
+    var assigneeId: String?
     var deadline: Date
     var isCompleted: Bool
     var status: TaskStatus // 🌟 三段式狀態
@@ -400,8 +401,9 @@ struct ProjectDetailFeatureView: View {
                     .foregroundColor(task.status == .done ? .secondary : .primary)
 
                 HStack {
-                    Label(task.assignee.isEmpty ? "未分配" : task.assignee,
-                          systemImage: "person.crop.circle")
+                    let displayName = getMemberName(uid: task.assigneeId ?? "", currentTask: task)
+                    
+                    Label(displayName, systemImage: "person.crop.circle")
                         .foregroundColor(.blue)
                     Spacer()
                     Label {
@@ -440,7 +442,12 @@ struct ProjectDetailFeatureView: View {
             .tint(.orange)
         }
     }
-
+    
+    // 1. 函式定義修正
+    private func getMemberName(uid: String, currentTask: ProjectDetailTask) -> String {
+        return viewModel.memberNames[uid] ?? currentTask.assignee
+    }
+    
     // MARK: - UI 小元件
     @ViewBuilder
     private func statusBadge(_ status: TaskStatus) -> some View {
