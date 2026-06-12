@@ -4,6 +4,12 @@ import SwiftUI
 struct UserTasksView: View {
     @State private var taskManager = TaskManager()
     
+    // 🌟 新增這裡：定義篩選選項與目前狀態
+    enum FilterOption {
+        case all, incomplete, completed
+    }
+    @State private var currentFilter: FilterOption = .all
+    
     // 🌟 新增這裡：控制通知中心彈窗顯示的布林值
     @State private var showNotificationCenter = false
     
@@ -58,6 +64,35 @@ struct UserTasksView: View {
             
             // 🌟 新增這裡：在導覽列右側塞入一個精緻的鈴鐺按鈕
             .toolbar {
+                // 🌟 左上角：任務篩選功能
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Button(action: {
+                            withAnimation { currentFilter = .all }
+                        }) {
+                            Label("顯示所有任務", systemImage: currentFilter == .all ? "checkmark" : "")
+                        }
+                        
+                        Button(action: {
+                            withAnimation { currentFilter = .incomplete }
+                        }) {
+                            Label("只看未完成", systemImage: currentFilter == .incomplete ? "checkmark" : "")
+                        }
+                        
+                        Button(action: {
+                            withAnimation { currentFilter = .completed }
+                        }) {
+                            Label("只看已完成", systemImage: currentFilter == .completed ? "checkmark" : "")
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                            .font(.title3)
+                            // 💡 小細節：如果有套用篩選，圖示會亮起橘色提示使用者
+                            // 💡 修改這裡：平常是淡橘色(50%透明)，有套用篩選時變成深橘色
+                            .foregroundColor(currentFilter == .all ? warmOrange.opacity(0.5) : warmOrange)
+                    }
+                }
+                
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: {
                         showNotificationCenter = true // 點擊時將布林值設為 true
@@ -362,7 +397,19 @@ struct UserTasksView: View {
     }
     
     private var groupedByDate: [DateGroup] {
-        let validTasks = taskManager.tasks.filter { $0.dueDate != nil }
+        // 🌟 修改這裡：先過濾出有日期的，再根據篩選條件過濾狀態
+        let validTasks = taskManager.tasks.filter { task in
+            guard task.dueDate != nil else { return false }
+            
+            switch currentFilter {
+            case .all:
+                return true // 全顯示
+            case .incomplete:
+                return task.status != .done // 只顯示未完成 (todo, inProgress)
+            case .completed:
+                return task.status == .done // 只顯示已完成
+            }
+        }
         
         let grouped = Dictionary(grouping: validTasks) { task -> Date in
             let components = Calendar.current.dateComponents([.year, .month, .day], from: task.dueDate!)
