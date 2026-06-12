@@ -18,6 +18,14 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         UNUserNotificationCenter.current().delegate = self
     }
     
+    // 3. 🌟 加入這個代理方法：當 App 在前景時，依然顯示橫幅與聲音
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // iOS 14 以上使用 .banner 與 .sound
+        completionHandler([.banner, .sound])
+    }
+    
     // 新增：根據偏移量排程通知
     func scheduleReminder(for task: TodoTask) {
         guard let dueDate = task.dueDate else { return }
@@ -134,17 +142,5 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
                 completion(notifications)
             }
         }
-    }
-    
-    // MARK: - UNUserNotificationCenterDelegate (處理前景通知)
-    
-    // 💡 3. 這個方法告訴 iOS：當 App 正在畫面上 (前景) 時收到通知，該怎麼呈現？
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        // 要求系統即使 App 開著，也要顯示橫幅 (.banner) 並播放聲音 (.sound)
-        completionHandler([.banner, .sound])
     }
 }

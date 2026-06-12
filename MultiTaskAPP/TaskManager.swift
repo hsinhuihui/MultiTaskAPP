@@ -87,11 +87,16 @@ class TaskManager {
                         continue
                     }
                     
+                    // 🌟 1. 取得使用者設定的提醒時間，如果沒設定(為 nil)，預設給 600 秒 (10分鐘)
+                    // (注意：如果你希望 nil 代表「完全不提醒」，這裡的寫法需要改成直接 continue，但我們先求修復時間差問題)
+                    let offset = task.reminderOffset ?? 600
+
                     // 如果狀態不是 done，且有時間，就會執行到這裡
                     NotificationManager.shared.scheduleDeadlineNotification(
                         taskTitle: task.title,
                         deadline: taskDate,
-                        taskId: task.id
+                        taskId: task.id,
+                        offsetInSeconds: offset // 🌟 2. 關鍵修正：把偏移量傳進去！
                     )
                 }
                 print("====================================")
@@ -153,7 +158,14 @@ class TaskManager {
         // 移除舊通知
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [task.id])
         
-        let offset = newOffset ?? 600 // 預設 10 分鐘 (600秒)
+        // 2. 如果 newOffset 是 nil，代表使用者選擇「不提醒」或取消提醒，就直接 return 結束
+        guard let offset = newOffset, let dueDate = task.dueDate else {
+            print("🚫 任務【\(task.title)】已設定為不提醒或缺乏截止時間")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.checkPendingNotifications()
+            }
+            return
+        }
         
         // 如果有設定偏移量且截止時間存在，則重新排程
         if let offset = newOffset, let dueDate = task.dueDate {
@@ -164,6 +176,17 @@ class TaskManager {
                 offsetInSeconds: offset // 傳入秒數
             )
             print("✅ 成功重新排程通知：\(task.title)，提前量：\(offset)秒")
+            
+            // 🌟 呼叫 Debug 函數，延遲 0.5 秒以確保系統排程已生效
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.checkPendingNotifications()
+            }
+        } else {
+            print("🚫 已取消通知，或缺乏截止時間")
+            // 🌟 即使是取消提醒 (不提醒)，我們也印出來確認系統清空了
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.checkPendingNotifications()
+            }
         }
     }
     
@@ -175,6 +198,21 @@ class TaskManager {
             } else {
                 print("🗑️ 任務已成功刪除")
             }
+        }
+    }
+    
+    // 💡 Debug 專用：印出目前所有排程中的通知
+    func checkPendingNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            print("\n🔍 --- 通知排程檢查 ---")
+            print("💡 目前系統中共有 \(requests.count) 個待發送通知：")
+            for request in requests {
+                if let trigger = request.trigger as? UNCalendarNotificationTrigger,
+                   let nextDate = trigger.nextTriggerDate() {
+                    print(" ➡️ 預計觸發時間: \(nextDate) | 任務 ID: \(request.identifier)")
+                }
+            }
+            print("----------------------\n")
         }
     }
     
